@@ -26,6 +26,9 @@ export const connections = sqliteTable('connections', {
   secretRef: text('secret_ref').notNull(),
   status: text('status', { enum: ['active', 'error', 'disabled'] }).notNull().default('active'),
   lastError: text('last_error'),
+  lastSyncedAt: ts('last_synced_at'),
+  lastSyncCursor: text('last_sync_cursor'),
+  syncIntervalMs: integer('sync_interval_ms').notNull().default(300_000),
   createdAt: tsRequired('created_at'),
 });
 

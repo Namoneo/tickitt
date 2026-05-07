@@ -8,6 +8,13 @@
       "when": 1778186045684,
       "tag": "0000_perfect_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1778189818911,
+      "tag": "0001_oval_stature",
+      "breakpoints": true
     }
   ]
 }
