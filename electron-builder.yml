@@ -1,0 +1,29 @@
+appId: com.sherzod.tickitt
+productName: Tickitt
+directories:
+  output: release
+  buildResources: build
+files:
+  - apps/main/dist/**/*
+  - apps/renderer/dist/**/*
+  - packages/db/src/migrations/**/*
+  - package.json
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/*.{md,markdown}"
+asarUnpack:
+  - "**/node_modules/better-sqlite3/**/*"
+  - "**/node_modules/keytar/**/*"
+  - "**/node_modules/node-pty/**/*"
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false
+dmg:
+  sign: false

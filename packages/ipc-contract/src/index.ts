@@ -1,0 +1,1 @@
+export type { AppRouter } from '@tickitt/main/ipc/router';
