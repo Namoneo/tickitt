@@ -3,3 +3,12 @@ Deal-hunter/
 claude/
 project-dashboard/
 tickitt/
+
+# Databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Runtime memory / session logs (sensitive, not source artifacts)
+memory/
