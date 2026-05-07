@@ -14,5 +14,5 @@ export default defineConfig({
   clean: true,
   minify: false,
   external: ['electron', 'better-sqlite3', 'keytar', 'node-pty'],
-  noExternal: [/^@tickitt\//, 'drizzle-orm', '@trpc/server', 'electron-trpc', 'superjson', 'zod'],
+  noExternal: [/^@tickitt\//, 'drizzle-orm', '@trpc/server', 'electron-trpc', 'superjson', 'zod', 'simple-git', '@octokit/rest', 'slugify'],
 });
