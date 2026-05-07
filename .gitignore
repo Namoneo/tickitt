@@ -1,0 +1,5 @@
+# Ignore embedded git repositories
+Deal-hunter/
+claude/
+project-dashboard/
+tickitt/
