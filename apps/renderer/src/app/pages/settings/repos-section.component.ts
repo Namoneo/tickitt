@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { TRPC } from '../../core/ipc/trpc.token';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import type { Repo } from '@tickitt/db';
+import { getTrpc } from '../../core/ipc/trpc.client';
 
 @Component({
   selector: 'tk-repos-section',
@@ -44,7 +44,6 @@ import type { Repo } from '@tickitt/db';
   `],
 })
 export class ReposSectionComponent {
-  private readonly trpc = inject(TRPC);
   protected readonly list = signal<Repo[]>([]);
   protected readonly showAdd = signal(false);
 
@@ -53,17 +52,17 @@ export class ReposSectionComponent {
   }
 
   protected async load(): Promise<void> {
-    this.list.set(await this.trpc.repos.list.query());
+    this.list.set(await getTrpc().repos.list.query());
   }
 
   protected async add(name: string, url: string, path: string, cloneNow: boolean): Promise<void> {
-    await this.trpc.repos.add.mutate({ name, remoteUrl: url, localPath: path, cloneNow });
+    await getTrpc().repos.add.mutate({ name, remoteUrl: url, localPath: path, cloneNow });
     this.showAdd.set(false);
     await this.load();
   }
 
   protected async remove(id: string): Promise<void> {
-    await this.trpc.repos.remove.mutate({ id });
+    await getTrpc().repos.remove.mutate({ id });
     await this.load();
   }
 }

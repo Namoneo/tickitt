@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { TRPC } from '../../core/ipc/trpc.token';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import type { Connection } from '@tickitt/db';
+import { getTrpc } from '../../core/ipc/trpc.client';
 
 @Component({
   selector: 'tk-connections-section',
@@ -47,7 +47,6 @@ import type { Connection } from '@tickitt/db';
   `],
 })
 export class ConnectionsSectionComponent {
-  private readonly trpc = inject(TRPC);
   protected readonly list = signal<Connection[]>([]);
   protected readonly showAdd = signal(false);
 
@@ -56,23 +55,23 @@ export class ConnectionsSectionComponent {
   }
 
   protected async load(): Promise<void> {
-    this.list.set(await this.trpc.connections.list.query());
+    this.list.set(await getTrpc().connections.list.query());
   }
 
   protected async add(kind: string, label: string, baseUrl: string, email: string, token: string): Promise<void> {
     const config = kind === 'jira' ? { baseUrl, email } : { owner: baseUrl };
-    await this.trpc.connections.create.mutate({ kind: kind as 'jira' | 'github', label, config, secret: token });
+    await getTrpc().connections.create.mutate({ kind: kind as 'jira' | 'github', label, config, secret: token });
     this.showAdd.set(false);
     await this.load();
   }
 
   protected async test(id: string): Promise<void> {
-    const result = await this.trpc.connections.test.mutate({ id });
+    const result = await getTrpc().connections.test.mutate({ id });
     alert(result.ok ? `OK: ${result.identity?.displayName ?? ''}` : `FAIL: ${result.error}`);
   }
 
   protected async remove(id: string): Promise<void> {
-    await this.trpc.connections.delete.mutate({ id });
+    await getTrpc().connections.delete.mutate({ id });
     await this.load();
   }
 }

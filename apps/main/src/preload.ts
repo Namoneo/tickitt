@@ -1,5 +1,5 @@
 import { exposeElectronTRPC } from 'electron-trpc/main';
 
-process.once('loaded', () => {
-  exposeElectronTRPC();
-});
+// Expose immediately, not in process.once('loaded'),
+// so window.electronTRPC is ready before any renderer code runs.
+exposeElectronTRPC();

@@ -1,12 +1,16 @@
 import { createTRPCProxyClient } from '@trpc/client';
 import { ipcLink } from 'electron-trpc/renderer';
-import superjson from 'superjson';
 import type { AppRouter } from '@tickitt/ipc-contract';
 
-export type Trpc = ReturnType<typeof createTrpc>;
+export type Trpc = ReturnType<typeof createTRPCProxyClient<AppRouter>>;
 
-export function createTrpc() {
-  return createTRPCProxyClient<AppRouter>({
-    links: [ipcLink()],
-  });
+let _client: Trpc | null = null;
+
+export function getTrpc(): Trpc {
+  if (!_client) {
+    _client = createTRPCProxyClient<AppRouter>({
+      links: [ipcLink()],
+    });
+  }
+  return _client;
 }

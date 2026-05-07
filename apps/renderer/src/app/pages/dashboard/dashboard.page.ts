@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { TRPC } from '../../core/ipc/trpc.token';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { getTrpc } from '../../core/ipc/trpc.client';
 import type { Ticket } from '@tickitt/db';
 
 @Component({
@@ -30,7 +30,6 @@ import type { Ticket } from '@tickitt/db';
   `],
 })
 export class DashboardPage {
-  private readonly trpc = inject(TRPC);
   protected readonly tickets = signal<Ticket[]>([]);
 
   constructor() {
@@ -38,6 +37,11 @@ export class DashboardPage {
   }
 
   protected async load(): Promise<void> {
-    this.tickets.set(await this.trpc.tickets.list.query());
+    try {
+      const trpc = getTrpc();
+      this.tickets.set(await trpc.tickets.list.query());
+    } catch {
+      /* silent: tRPC may not be ready on first render */
+    }
   }
 }

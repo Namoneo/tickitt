@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import type { AppInfo, KeychainProbeResult } from '@tickitt/shared-types';
-import { TRPC } from '../../core/ipc/trpc.token';
+import { getTrpc } from '../../core/ipc/trpc.client';
 
 @Component({
   selector: 'tk-diagnostics-section',
@@ -27,16 +27,23 @@ import { TRPC } from '../../core/ipc/trpc.token';
   `],
 })
 export class DiagnosticsSectionComponent {
-  private readonly trpc = inject(TRPC);
   protected readonly info = signal<AppInfo | null>(null);
   protected readonly keychain = signal<KeychainProbeResult | null>(null);
   protected readonly formatted = computed(() => JSON.stringify(this.info(), null, 2));
 
   protected async loadInfo(): Promise<void> {
-    this.info.set(await this.trpc.system.appInfo.query());
+    try {
+      this.info.set(await getTrpc().system.appInfo.query());
+    } catch (err) {
+      this.info.set(null);
+    }
   }
 
   protected async probeKeychain(): Promise<void> {
-    this.keychain.set(await this.trpc.system.keychainProbe.mutate());
+    try {
+      this.keychain.set(await getTrpc().system.keychainProbe.mutate());
+    } catch (err) {
+      this.keychain.set({ ok: false, error: String(err) });
+    }
   }
 }

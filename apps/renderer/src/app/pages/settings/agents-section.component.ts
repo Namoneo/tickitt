@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { TRPC } from '../../core/ipc/trpc.token';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import type { Agent } from '@tickitt/db';
+import { getTrpc } from '../../core/ipc/trpc.client';
 
 @Component({
   selector: 'tk-agents-section',
@@ -48,7 +48,6 @@ import type { Agent } from '@tickitt/db';
   `],
 })
 export class AgentsSectionComponent {
-  private readonly trpc = inject(TRPC);
   protected readonly list = signal<Agent[]>([]);
   protected readonly showAdd = signal(false);
 
@@ -57,22 +56,22 @@ export class AgentsSectionComponent {
   }
 
   protected async load(): Promise<void> {
-    this.list.set(await this.trpc.agents.list.query());
+    this.list.set(await getTrpc().agents.list.query());
   }
 
   protected async add(kind: string, name: string, binary: string): Promise<void> {
-    await this.trpc.agents.create.mutate({ kind: kind as any, name, binaryPath: binary });
+    await getTrpc().agents.create.mutate({ kind: kind as any, name, binaryPath: binary });
     this.showAdd.set(false);
     await this.load();
   }
 
   protected async toggle(a: Agent): Promise<void> {
-    await this.trpc.agents.setEnabled.mutate({ id: a.id, enabled: !a.enabled });
+    await getTrpc().agents.setEnabled.mutate({ id: a.id, enabled: !a.enabled });
     await this.load();
   }
 
   protected async remove(id: string): Promise<void> {
-    await this.trpc.agents.delete.mutate({ id });
+    await getTrpc().agents.delete.mutate({ id });
     await this.load();
   }
 }
