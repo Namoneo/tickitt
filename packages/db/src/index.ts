@@ -4,6 +4,7 @@ import { migrate as drizzleMigrate } from 'drizzle-orm/better-sqlite3/migrator';
 import * as schema from './schema.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 
 export * from './schema.js';
 export type Db = BetterSQLite3Database<typeof schema>;
@@ -25,6 +26,20 @@ export function createDb(opts: CreateDbOptions): { db: Db; close: () => void } {
 }
 
 export function migrationsDir(): string {
+  // In dev (tsup bundle): __dirname is apps/main/dist/
+  // Need to go up 3 levels to reach repo root, then into packages/db/src/migrations
+  const candidates = [
+    path.resolve(__dirname, '..', '..', '..', 'packages', 'db', 'src', 'migrations'),
+    path.resolve(__dirname, '..', '..', 'packages', 'db', 'src', 'migrations'),
+    path.resolve(__dirname, '..', 'packages', 'db', 'src', 'migrations'),
+    path.resolve(__dirname, 'migrations'),
+    path.resolve(process.cwd(), 'packages', 'db', 'src', 'migrations'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(path.join(candidate, 'meta', '_journal.json'))) {
+      return candidate;
+    }
+  }
   try {
     const here = path.dirname(fileURLToPath(import.meta.url));
     return path.join(here, 'migrations');
