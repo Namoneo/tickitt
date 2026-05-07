@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { TRPC } from '../../core/ipc/trpc.token';
+import type { Ticket } from '@tickitt/db';
 
 @Component({
   selector: 'tk-dashboard',
@@ -6,7 +8,36 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2>Dashboard</h2>
-    <p>Tickets and agent assignment land here in Phase 1+.</p>
+    <p>Synced tickets appear here.</p>
+
+    @if (tickets().length > 0) {
+      <div class="tickets">
+        @for (t of tickets(); track t.id) {
+          <div class="ticket">
+            <strong>{{ t.key }}</strong> — {{ t.title }}
+            <span class="status">{{ t.status }}</span>
+          </div>
+        }
+      </div>
+    } @else {
+      <p>No tickets synced yet. Add a Jira connection in Settings and click Test.</p>
+    }
   `,
+  styles: [`
+    .tickets { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .ticket { padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-elev); display: flex; gap: 8px; align-items: center; }
+    .status { margin-left: auto; font-size: 12px; color: var(--fg-dim); }
+  `],
 })
-export class DashboardPage {}
+export class DashboardPage {
+  private readonly trpc = inject(TRPC);
+  protected readonly tickets = signal<Ticket[]>([]);
+
+  constructor() {
+    this.load();
+  }
+
+  protected async load(): Promise<void> {
+    this.tickets.set(await this.trpc.tickets.list.query());
+  }
+}
