@@ -55,23 +55,23 @@ export class ConnectionsSectionComponent {
   }
 
   protected async load(): Promise<void> {
-    this.list.set(await getTrpc().connections.list.query());
+    this.list.set(await (await getTrpc()).connections.list.query());
   }
 
   protected async add(kind: string, label: string, baseUrl: string, email: string, token: string): Promise<void> {
     const config = kind === 'jira' ? { baseUrl, email } : { owner: baseUrl };
-    await getTrpc().connections.create.mutate({ kind: kind as 'jira' | 'github', label, config, secret: token });
+    await (await getTrpc()).connections.create.mutate({ kind: kind as 'jira' | 'github', label, config, secret: token });
     this.showAdd.set(false);
     await this.load();
   }
 
   protected async test(id: string): Promise<void> {
-    const result = await getTrpc().connections.test.mutate({ id });
+    const result = await (await getTrpc()).connections.test.mutate({ id });
     alert(result.ok ? `OK: ${result.identity?.displayName ?? ''}` : `FAIL: ${result.error}`);
   }
 
   protected async remove(id: string): Promise<void> {
-    await getTrpc().connections.delete.mutate({ id });
+    await (await getTrpc()).connections.delete.mutate({ id });
     await this.load();
   }
 }

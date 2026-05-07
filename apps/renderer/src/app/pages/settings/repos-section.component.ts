@@ -52,17 +52,17 @@ export class ReposSectionComponent {
   }
 
   protected async load(): Promise<void> {
-    this.list.set(await getTrpc().repos.list.query());
+    this.list.set(await (await getTrpc()).repos.list.query());
   }
 
   protected async add(name: string, url: string, path: string, cloneNow: boolean): Promise<void> {
-    await getTrpc().repos.add.mutate({ name, remoteUrl: url, localPath: path, cloneNow });
+    await (await getTrpc()).repos.add.mutate({ name, remoteUrl: url, localPath: path, cloneNow });
     this.showAdd.set(false);
     await this.load();
   }
 
   protected async remove(id: string): Promise<void> {
-    await getTrpc().repos.remove.mutate({ id });
+    await (await getTrpc()).repos.remove.mutate({ id });
     await this.load();
   }
 }

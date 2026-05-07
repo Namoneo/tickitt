@@ -33,7 +33,7 @@ export class DiagnosticsSectionComponent {
 
   protected async loadInfo(): Promise<void> {
     try {
-      this.info.set(await getTrpc().system.appInfo.query());
+      this.info.set(await (await getTrpc()).system.appInfo.query());
     } catch (err) {
       this.info.set(null);
     }
@@ -41,7 +41,7 @@ export class DiagnosticsSectionComponent {
 
   protected async probeKeychain(): Promise<void> {
     try {
-      this.keychain.set(await getTrpc().system.keychainProbe.mutate());
+      this.keychain.set(await (await getTrpc()).system.keychainProbe.mutate());
     } catch (err) {
       this.keychain.set({ ok: false, error: String(err) });
     }

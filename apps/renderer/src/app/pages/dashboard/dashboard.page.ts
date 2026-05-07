@@ -38,7 +38,7 @@ export class DashboardPage {
 
   protected async load(): Promise<void> {
     try {
-      const trpc = getTrpc();
+      const trpc = await getTrpc();
       this.tickets.set(await trpc.tickets.list.query());
     } catch {
       /* silent: tRPC may not be ready on first render */

@@ -56,22 +56,22 @@ export class AgentsSectionComponent {
   }
 
   protected async load(): Promise<void> {
-    this.list.set(await getTrpc().agents.list.query());
+    this.list.set(await (await getTrpc()).agents.list.query());
   }
 
   protected async add(kind: string, name: string, binary: string): Promise<void> {
-    await getTrpc().agents.create.mutate({ kind: kind as any, name, binaryPath: binary });
+    await (await getTrpc()).agents.create.mutate({ kind: kind as any, name, binaryPath: binary });
     this.showAdd.set(false);
     await this.load();
   }
 
   protected async toggle(a: Agent): Promise<void> {
-    await getTrpc().agents.setEnabled.mutate({ id: a.id, enabled: !a.enabled });
+    await (await getTrpc()).agents.setEnabled.mutate({ id: a.id, enabled: !a.enabled });
     await this.load();
   }
 
   protected async remove(id: string): Promise<void> {
-    await getTrpc().agents.delete.mutate({ id });
+    await (await getTrpc()).agents.delete.mutate({ id });
     await this.load();
   }
 }
