@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1778186045684,
+      "tag": "0000_perfect_king_cobra",
+      "breakpoints": true
+    }
+  ]
+}
