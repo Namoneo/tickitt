@@ -25,8 +25,12 @@ export function createDb(opts: CreateDbOptions): { db: Db; close: () => void } {
 }
 
 export function migrationsDir(): string {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  return path.join(here, 'migrations');
+  try {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    return path.join(here, 'migrations');
+  } catch {
+    return path.join(__dirname, 'migrations');
+  }
 }
 
 export async function runMigrations(db: Db): Promise<void> {
