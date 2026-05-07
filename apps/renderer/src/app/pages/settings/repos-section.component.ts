@@ -16,7 +16,10 @@ import type { Repo } from '@tickitt/db';
           <input #name placeholder="Name" />
           <input #url placeholder="Remote URL" />
           <input #path placeholder="Local path" />
-          <button (click)="add(name.value, url.value, path.value)">Save</button>
+          <label>
+            <input #cloneNow type="checkbox" /> Clone now
+          </label>
+          <button (click)="add(name.value, url.value, path.value, cloneNow.checked)">Save</button>
           <button (click)="showAdd.set(false)">Cancel</button>
         </div>
       }
@@ -53,8 +56,8 @@ export class ReposSectionComponent {
     this.list.set(await this.trpc.repos.list.query());
   }
 
-  protected async add(name: string, url: string, path: string): Promise<void> {
-    await this.trpc.repos.add.mutate({ name, remoteUrl: url, localPath: path });
+  protected async add(name: string, url: string, path: string, cloneNow: boolean): Promise<void> {
+    await this.trpc.repos.add.mutate({ name, remoteUrl: url, localPath: path, cloneNow });
     this.showAdd.set(false);
     await this.load();
   }
