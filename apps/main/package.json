@@ -8,7 +8,8 @@
     "dev": "tsup --watch --onSuccess \"electron ./dist/index.cjs --no-sandbox --disable-gpu\"",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'add eslint later'"
+    "lint": "echo 'add eslint later'",
+    "test": "vitest run"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
@@ -26,7 +27,9 @@
   "devDependencies": {
     "@types/node": "^22.7.5",
     "electron": "^33.0.0",
+    "tmp-promise": "^3.0.3",
     "tsup": "^8.3.0",
-    "typescript": "~5.6.2"
+    "typescript": "~5.6.2",
+    "vitest": "^4.1.5"
   }
 }

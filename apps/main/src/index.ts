@@ -6,6 +6,9 @@ import { appRouter } from './ipc/router.js';
 import { createMainWindow } from './windows/main-window.js';
 import { ConnectionService } from './services/connection-service.js';
 import { TicketSyncService } from './services/ticket-sync-service.js';
+import { RepoMutex } from './services/repo-mutex.js';
+import { WorktreeService } from './services/worktree.service.js';
+import { DiffService } from './services/diff.service.js';
 
 app.setName('Tickitt');
 
@@ -18,6 +21,10 @@ async function bootstrap(): Promise<void> {
   const connectionService = new ConnectionService();
   const ticketSync = new TicketSyncService(db, connectionService);
 
+  const repoMutex = new RepoMutex();
+  const worktrees = new WorktreeService(db, paths, repoMutex);
+  const diff = new DiffService();
+
   await app.whenReady();
 
   mainWindow = createMainWindow();
@@ -25,7 +32,10 @@ async function bootstrap(): Promise<void> {
   createIPCHandler({
     router: appRouter,
     windows: [mainWindow],
-    createContext: async () => ({ db, paths, connectionService, ticketSync }),
+    createContext: async () => ({
+      db, paths, connectionService, ticketSync,
+      worktrees, diff,
+    }),
   });
 
   ticketSync.startAll();
