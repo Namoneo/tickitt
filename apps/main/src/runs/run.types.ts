@@ -16,7 +16,7 @@ export interface RunEventPayload {
   };
   eventDbId?: number;
   state?: string;
-  error?: string | null;
+  error?: string | null | undefined;
   active?: number;
   waiting?: number;
 }

@@ -8,7 +8,7 @@ import type { ConnectionService } from './connection-service.js';
 export interface ApproveInput {
   runId: string;
   /** Optional override; defaults to "<key>: <title>". */
-  commitMessage?: string;
+  commitMessage?: string | undefined;
 }
 
 export interface ApproveResult {

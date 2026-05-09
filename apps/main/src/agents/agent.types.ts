@@ -24,7 +24,7 @@ export interface SpawnOptions {
   binaryPath: string;
   extraArgs: string[];
   /** When set, the agent should resume the prior session rather than start fresh. */
-  resumeSessionId?: string;
+  resumeSessionId?: string | undefined;
 }
 
 export interface RunHandle {

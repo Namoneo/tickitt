@@ -223,8 +223,8 @@ export class RunOrchestrator {
       }
 
       if (next === 'failed') {
-        this.persistence.updateState(runId, 'failed', errorMsg);
-        this.stream.publish({ kind: 'state', runId, state: 'failed', error: errorMsg });
+        this.persistence.updateState(runId, 'failed', errorMsg ?? null);
+        this.stream.publish({ kind: 'state', runId, state: 'failed', error: errorMsg ?? null });
       } else if (next === 'abandoned') {
         this.persistence.updateState(runId, 'abandoned');
         this.stream.publish({ kind: 'state', runId, state: 'abandoned' });
