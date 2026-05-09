@@ -38,7 +38,7 @@ export function createRunPersistence(db: Db) {
       return rows[0] ?? null;
     },
 
-    listRuns(opts?: { states?: string[]; ticketId?: string }): Run[] {
+    listRuns(opts?: { states?: string[] | undefined; ticketId?: string | undefined }): Run[] {
       let q = db.select().from(runs);
       const conditions = [];
       if (opts?.states?.length) conditions.push(inArray(runs.state, opts.states as any));

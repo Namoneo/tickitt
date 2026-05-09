@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { git } from './git-helpers.js';
+import { lookupLanguage } from './diff-lang.js';
 
 export type FileStatus = 'added' | 'modified' | 'deleted' | 'renamed';
 
@@ -33,8 +34,21 @@ export interface FileDiffResult {
   bytes: number;
 }
 
+export interface FileContent {
+  original: string | null;        // null = file added (didn't exist at base)
+  modified: string | null;        // null = file deleted in worktree
+  isBinary: boolean;
+  /** Suggested Monaco language id, e.g. 'typescript', 'json', 'plaintext'. */
+  language: string;
+  /** True if either side exceeded the size cap; both sides will be null. */
+  truncated: boolean;
+  bytesOriginal: number;
+  bytesModified: number;
+}
+
 const PATCH_BYTE_CAP = 500 * 1024;
 const UNTRACKED_BYTE_CAP = 100 * 1024;
+const FILE_CONTENT_CAP = 1_000_000; // 1 MB per side
 
 export class DiffService {
   async summary(worktreePath: string, baseRef: string): Promise<DiffSummary> {
@@ -148,6 +162,46 @@ export class DiffService {
       oldPath: undefined,
     };
   }
+
+  async fileContent(worktreePath: string, baseRef: string, filePath: string): Promise<FileContent> {
+    const g = git(worktreePath);
+
+    // Original: git show <baseRef>:<path>. Returns non-zero if path doesn't exist at base.
+    let original: string | null = null;
+    let bytesOriginal = 0;
+    try {
+      const raw = await g.raw(['show', `${baseRef}:${filePath}`]);
+      bytesOriginal = Buffer.byteLength(raw, 'utf8');
+      original = raw;
+    } catch {
+      original = null; // added file
+    }
+
+    // Modified: read from working tree. Missing = deleted.
+    let modified: string | null = null;
+    let bytesModified = 0;
+    try {
+      const abs = path.join(worktreePath, filePath);
+      const stat = await fs.stat(abs);
+      bytesModified = stat.size;
+      modified = await fs.readFile(abs, 'utf8');
+    } catch {
+      modified = null;
+    }
+
+    const truncated = bytesOriginal > FILE_CONTENT_CAP || bytesModified > FILE_CONTENT_CAP;
+    const isBinary = (original !== null && containsNul(original))
+                  || (modified !== null && containsNul(modified));
+    return {
+      original: truncated || isBinary ? null : original,
+      modified: truncated || isBinary ? null : modified,
+      isBinary,
+      truncated,
+      language: lookupLanguage(filePath),
+      bytesOriginal,
+      bytesModified,
+    };
+  }
 }
 
 // ---------- helpers (file-private) ----------
@@ -237,4 +291,8 @@ new file mode 100644
 @@ -0,0 +1,${lines.length} @@
 `;
   return header + lines.map((l) => `+${l}`).join('\n') + '\n';
+}
+
+function containsNul(s: string): boolean {
+  return s.indexOf('\u0000') !== -1;
 }

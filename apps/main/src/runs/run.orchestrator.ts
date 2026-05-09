@@ -32,7 +32,7 @@ export class RunOrchestrator {
     return this.persistence.recoverOnBoot();
   }
 
-  listRuns(opts?: { states?: string[]; ticketId?: string }) {
+  listRuns(opts?: { states?: string[] | undefined; ticketId?: string | undefined }) {
     return this.persistence.listRuns(opts);
   }
 
@@ -61,6 +61,10 @@ export class RunOrchestrator {
       prUrl: null,
       tokenCost: null,
       approvalDecision: null,
+      baseSha: null,
+      sessionId: null,
+      iterationCount: 0,
+      pushedAt: null,
     });
 
     this.queue.submit({
