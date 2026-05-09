@@ -19,12 +19,14 @@
     "drizzle-orm": "^0.36.0",
     "electron-trpc": "^0.7.0",
     "keytar": "^7.9.0",
+    "ndjson": "^2.0.0",
     "simple-git": "^3.36.0",
     "slugify": "^1.6.9",
     "superjson": "^2.2.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/ndjson": "^2.0.4",
     "@types/node": "^22.7.5",
     "electron": "^33.0.0",
     "tmp-promise": "^3.0.3",
