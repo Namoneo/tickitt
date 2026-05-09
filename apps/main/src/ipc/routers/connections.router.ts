@@ -37,12 +37,57 @@ export const connectionsRouter = router({
       return row;
     }),
 
+  updateGithub: publicProcedure
+    .input(z.object({
+      id: z.string(),
+      label: z.string().min(1).max(100).optional(),
+      config: z.record(z.unknown()).optional(),
+      pat: z.string().min(1).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const [row] = ctx.db.select().from(connections).where(eq(connections.id, input.id)).all();
+      if (!row || row.kind !== 'github') throw new Error('GitHub connection not found');
+      const patch: Partial<typeof row> = {};
+      if (input.label !== undefined) patch.label = input.label;
+      if (input.config !== undefined) patch.configJson = input.config;
+      if (Object.keys(patch).length > 0) {
+        ctx.db.update(connections).set(patch).where(eq(connections.id, input.id)).run();
+      }
+      if (input.pat) {
+        await Keychain.set(row.secretRef, input.pat);
+      }
+      ctx.connectionService.invalidate(row.id);
+      return { ok: true as const };
+    }),
+
+  updateJira: publicProcedure
+    .input(z.object({
+      id: z.string(),
+      label: z.string().min(1).max(100).optional(),
+      config: z.record(z.unknown()).optional(),
+      apiToken: z.string().min(1).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const [row] = ctx.db.select().from(connections).where(eq(connections.id, input.id)).all();
+      if (!row || row.kind !== 'jira') throw new Error('Jira connection not found');
+      const patch: Partial<typeof row> = {};
+      if (input.label !== undefined) patch.label = input.label;
+      if (input.config !== undefined) patch.configJson = input.config;
+      if (Object.keys(patch).length > 0) {
+        ctx.db.update(connections).set(patch).where(eq(connections.id, input.id)).run();
+      }
+      if (input.apiToken) {
+        await Keychain.set(row.secretRef, input.apiToken);
+      }
+      ctx.connectionService.invalidate(row.id);
+      return { ok: true as const };
+    }),
+
   delete: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const [row] = ctx.db.select().from(connections).where(eq(connections.id, input.id)).all();
       if (!row) return { ok: false as const };
-      // Delete from DB first so the row is gone even if keychain removal fails.
       ctx.db.delete(connections).where(eq(connections.id, input.id)).run();
       ctx.connectionService.evict(row.id);
       await Keychain.delete(row.secretRef);

@@ -34,6 +34,21 @@ export const reposRouter = router({
       return row!;
     }),
 
+  update: publicProcedure
+    .input(z.object({
+      id: z.string(),
+      defaultBranch: z.string().min(1).optional(),
+      githubConnectionId: z.string().nullable().optional(),
+    }))
+    .mutation(({ ctx, input }) => {
+      const patch: Record<string, unknown> = {};
+      if (input.defaultBranch !== undefined) patch.defaultBranch = input.defaultBranch;
+      if (input.githubConnectionId !== undefined) patch.githubConnectionId = input.githubConnectionId;
+      if (Object.keys(patch).length === 0) return { ok: true as const };
+      ctx.db.update(repos).set(patch).where(eq(repos.id, input.id)).run();
+      return { ok: true as const };
+    }),
+
   remove: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(({ ctx, input }) => {

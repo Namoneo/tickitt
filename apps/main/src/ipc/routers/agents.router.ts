@@ -28,6 +28,25 @@ export const agentsRouter = router({
       return row!;
     }),
 
+  update: publicProcedure
+    .input(z.object({
+      id: z.string(),
+      name: z.string().min(1).max(80).optional(),
+      binaryPath: z.string().min(1).optional(),
+      args: z.array(z.string()).optional(),
+      env: z.record(z.string()).optional(),
+    }))
+    .mutation(({ ctx, input }) => {
+      const patch: Record<string, unknown> = {};
+      if (input.name !== undefined) patch.name = input.name;
+      if (input.binaryPath !== undefined) patch.binaryPath = input.binaryPath;
+      if (input.args !== undefined) patch.argsJson = input.args;
+      if (input.env !== undefined) patch.envJson = input.env;
+      if (Object.keys(patch).length === 0) return { ok: true as const };
+      ctx.db.update(agents).set(patch).where(eq(agents.id, input.id)).run();
+      return { ok: true as const };
+    }),
+
   setEnabled: publicProcedure
     .input(z.object({ id: z.string(), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => {
