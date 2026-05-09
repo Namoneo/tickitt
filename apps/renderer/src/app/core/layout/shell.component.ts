@@ -59,5 +59,5 @@ import { RunStreamService } from '../ipc/run-stream.service';
 })
 export class ShellComponent {
   private readonly stream = inject(RunStreamService);
-  protected readonly stats = this.stream.runStats();
+  protected readonly stats = this.stream.runStats;
 }

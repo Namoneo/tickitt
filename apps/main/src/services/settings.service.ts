@@ -15,17 +15,12 @@ export class SettingsService {
   }
 
   set<T>(key: string, value: T): void {
-    const existing = this.db.select().from(appSettings).where(eq(appSettings.key, key)).all();
-    if (existing.length === 0) {
-      this.db.insert(appSettings).values({ key, value: value as unknown, updatedAt: new Date() }).run();
-    } else {
-      this.db.update(appSettings)
-        .set({ value: value as unknown, updatedAt: new Date() })
-        .where(eq(appSettings.key, key))
-        .run();
-    }
-    const set = this.watchers.get(key);
-    if (set) for (const fn of set) fn(value);
+    this.db.insert(appSettings)
+      .values({ key, value: value as unknown, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: appSettings.key, set: { value: value as unknown, updatedAt: new Date() } })
+      .run();
+    const watchers = this.watchers.get(key);
+    if (watchers) for (const fn of watchers) fn(value);
   }
 
   watch<T>(key: string, fn: (value: T) => void): () => void {

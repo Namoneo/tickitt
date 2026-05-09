@@ -243,6 +243,8 @@ export class RunOrchestrator {
       const msg = err instanceof Error ? err.message : String(err);
       this.persistence.updateState(runId, 'failed', msg);
       this.stream.publish({ kind: 'state', runId, state: 'failed', error: msg });
+    } finally {
+      this.publishStats();
     }
   }
 
@@ -326,16 +328,14 @@ export class RunOrchestrator {
   }
 
   private publishStats(): void {
-    const counts = (['queued', 'preparing', 'running', 'pushing', 'awaiting_review', 'failed'] as const)
-      .map((s) => ({ s, n: this.persistence.listRuns({ states: [s] }).length }));
-    const by = (s: string): number => counts.find((c) => c.s === s)?.n ?? 0;
-    this.stream.publish({
-      kind: 'stats',
-      runId: '',
-      active: by('preparing') + by('running') + by('pushing'),
-      queued: by('queued'),
-      awaiting: by('awaiting_review'),
-      failed: by('failed'),
-    });
+    const all = this.persistence.listRuns({ states: ['queued', 'preparing', 'running', 'pushing', 'awaiting_review', 'failed'] });
+    let active = 0, queued = 0, awaiting = 0, failed = 0;
+    for (const r of all) {
+      if (r.state === 'preparing' || r.state === 'running' || r.state === 'pushing') active++;
+      else if (r.state === 'queued') queued++;
+      else if (r.state === 'awaiting_review') awaiting++;
+      else if (r.state === 'failed') failed++;
+    }
+    this.stream.publish({ kind: 'stats', runId: '', active, queued, awaiting, failed });
   }
 }

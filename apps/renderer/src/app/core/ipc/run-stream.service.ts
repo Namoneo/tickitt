@@ -1,4 +1,4 @@
-import { signal, computed } from '@angular/core';
+import { signal } from '@angular/core';
 import { subscribeRunEvents, type RunEventPayload } from './run-events.bridge.js';
 
 interface EventEntry {
@@ -25,16 +25,11 @@ export class RunStreamService {
   private readonly queueSig = signal<{ active: number; waiting: number }>({ active: 0, waiting: 0 });
   private readonly statsSig = signal<{ active: number; queued: number; awaiting: number; failed: number }>({ active: 0, queued: 0, awaiting: 0, failed: 0 });
 
+  readonly queueStats = this.queueSig.asReadonly();
+  readonly runStats = this.statsSig.asReadonly();
+
   constructor() {
     subscribeRunEvents((payload) => this.handle(payload));
-  }
-
-  queueStats() {
-    return computed(() => this.queueSig());
-  }
-
-  runStats() {
-    return computed(() => this.statsSig());
   }
 
   forRun(runId: string) {

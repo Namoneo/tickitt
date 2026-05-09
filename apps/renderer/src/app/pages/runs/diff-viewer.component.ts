@@ -118,7 +118,13 @@ export class DiffViewerComponent implements OnDestroy {
       prev.original.dispose();
       prev.modified.dispose();
     }
-    this.editor.setModel({ original: originalModel, modified: modifiedModel });
+    try {
+      this.editor.setModel({ original: originalModel, modified: modifiedModel });
+    } catch (err) {
+      originalModel.dispose();
+      modifiedModel.dispose();
+      throw err;
+    }
   }
 
   private disposeEditor(): void {

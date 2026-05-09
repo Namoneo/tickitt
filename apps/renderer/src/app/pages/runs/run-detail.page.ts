@@ -7,6 +7,21 @@ import { EventListComponent } from '../../shared/ui/event-list.component';
 import { DiffViewerComponent } from './diff-viewer.component';
 import { RequestChangesDialogComponent } from './request-changes-dialog.component';
 
+interface RunDetail {
+  id: string;
+  state: string;
+  branchName: string;
+  prUrl: string | null;
+  iterationCount: number;
+  worktreePath: string;
+  repoId: string;
+  ticketId: string;
+  agentId: string;
+  baseSha: string | null;
+  sessionId: string | null;
+  error: string | null;
+}
+
 @Component({
   selector: 'tk-run-detail',
   standalone: true,
@@ -85,7 +100,7 @@ export class RunDetailPage {
   private readonly stream = inject(RunStreamService);
   readonly id = input.required<string>();
 
-  protected readonly run = signal<any | null>(null);
+  protected readonly run = signal<RunDetail | null>(null);
   protected readonly events = computed(() => this.streamEvents().events());
   protected readonly liveState = computed(() => this.streamEvents().state());
   protected readonly cancelling = signal(false);
