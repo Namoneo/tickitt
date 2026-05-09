@@ -110,7 +110,7 @@ export const runEvents = sqliteTable(
     id: integer('id').primaryKey({ autoIncrement: true }),
     runId: text('run_id').notNull().references(() => runs.id, { onDelete: 'cascade' }),
     ts: integer('ts', { mode: 'timestamp_ms' }).notNull().$defaultFn(() => new Date()),
-    kind: text('kind', { enum: ['text', 'tool_use', 'tool_result', 'error', 'state_change', 'system'] }).notNull(),
+    kind: text('kind', { enum: ['text', 'tool_use', 'tool_result', 'error', 'state_change', 'system', 'usage'] }).notNull(),
     payloadJson: text('payload_json', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
   },
   (t) => ({

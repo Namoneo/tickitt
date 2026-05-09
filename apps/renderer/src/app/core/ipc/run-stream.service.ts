@@ -61,11 +61,12 @@ export class RunStreamService {
     if (payload.kind === 'event') {
       const s = this.ensure(payload.runId);
       const ev = payload.event;
-      if (ev && payload.eventDbId != null) {
+      const dbId = payload.eventDbId;
+      if (ev && dbId != null) {
         s.events.update((arr) =>
-          arr.some((e) => e.id === payload.eventDbId)
+          arr.some((e) => e.id === dbId)
             ? arr
-            : [...arr, { id: payload.eventDbId, payload: ev }]
+            : [...arr, { id: dbId, payload: ev }]
         );
       }
     } else if (payload.kind === 'state') {

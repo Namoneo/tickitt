@@ -44,7 +44,6 @@ export class RunOrchestrator {
     const branchName = `${ticket.key}-${runId.slice(0, 8)}`;
 
     this.persistence.insertRun({
-      id: runId,
       ticketId: opts.ticketId,
       repoId: opts.repoId,
       agentId: opts.agentId,

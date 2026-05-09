@@ -45,7 +45,7 @@ async function bootstrap(): Promise<void> {
   createIPCHandler({
     router: appRouter,
     windows: [mainWindow],
-    createContext: async () =>> ({
+    createContext: async () => ({
       db, paths, connectionService, ticketSync,
       worktrees, diff, orchestrator,
     }),

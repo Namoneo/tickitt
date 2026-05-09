@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { getTrpc } from '../../core/ipc/trpc.client';
 import { RunStreamService } from '../../core/ipc/run-stream.service';
 import { RunStateBadgeComponent } from '../../shared/ui/run-state-badge.component';
@@ -9,7 +9,7 @@ import { EventListComponent } from '../../shared/ui/event-list.component';
   selector: 'tk-run-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, DecimalPipe, RunStateBadgeComponent, EventListComponent],
+  imports: [DatePipe, RunStateBadgeComponent, EventListComponent],
   template: `
     @if (run(); as r) {
       <header>

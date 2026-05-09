@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { DatePipe, RouterLink } from '@angular/common';
+import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { getTrpc } from '../../core/ipc/trpc.client';
 import { RunStreamService } from '../../core/ipc/run-stream.service';
 import { RunStateBadgeComponent } from '../../shared/ui/run-state-badge.component';
