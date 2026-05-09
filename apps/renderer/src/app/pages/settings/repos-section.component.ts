@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import type { Repo } from '@tickitt/db';
 import { getTrpc } from '../../core/ipc/trpc.client';
 
@@ -6,63 +7,146 @@ import { getTrpc } from '../../core/ipc/trpc.client';
   selector: 'tk-repos-section',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormsModule],
   template: `
     <section>
-      <h3>Repositories</h3>
-      <button (click)="showAdd.set(true)">Add repository</button>
+      <div class="row">
+        <h3>Repositories</h3>
+        <input [(ngModel)]="search" placeholder="Search repos..." class="search" />
+        <button (click)="openCreate()">Add repository</button>
+      </div>
 
-      @if (showAdd()) {
+      @if (editing()) {
         <div class="form">
-          <input #name placeholder="Name" />
-          <input #url placeholder="Remote URL" />
-          <input #path placeholder="Local path" />
-          <label>
-            <input #cloneNow type="checkbox" /> Clone now
-          </label>
-          <button (click)="add(name.value, url.value, path.value, cloneNow.checked)">Save</button>
-          <button (click)="showAdd.set(false)">Cancel</button>
+          <input [(ngModel)]="form.name" placeholder="Name" />
+          <input [(ngModel)]="form.remoteUrl" placeholder="Remote URL" [disabled]="editing() !== 'new'" />
+          <input [(ngModel)]="form.localPath" placeholder="Local path" [disabled]="editing() !== 'new'" />
+          <input [(ngModel)]="form.defaultBranch" placeholder="Default branch" />
+          @if (editing() === 'new') {
+            <label><input type="checkbox" [(ngModel)]="form.cloneNow" /> Clone now</label>
+          }
+          <div class="actions">
+            <button (click)="save()" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+            <button (click)="cancel()">Cancel</button>
+          </div>
         </div>
       }
 
-      @for (r of list(); track r.id) {
+      @for (r of filtered(); track r.id) {
         <div class="item">
-          <strong>{{ r.name }}</strong> — {{ r.remoteUrl }}
-          <button (click)="remove(r.id)">Delete</button>
+          <div class="info">
+            <strong>{{ r.name }}</strong>
+            <span class="dim">{{ r.remoteUrl }}</span>
+            <span class="badge">{{ r.defaultBranch }}</span>
+          </div>
+          <div class="actions">
+            <button (click)="openEdit(r)">Edit</button>
+            <button (click)="remove(r.id)">Delete</button>
+          </div>
         </div>
       } @empty {
-        <p>No repositories added.</p>
+        <div class="empty">
+          @if (search()) {
+            <p>No repos match "{{ search() }}"</p>
+            <button (click)="search.set('')">Clear search</button>
+          } @else {
+            <p>No repositories added yet.</p>
+            <button (click)="openCreate()">Add your first repo</button>
+          }
+        </div>
       }
     </section>
   `,
   styles: [`
     section { margin: 16px 0; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elev); }
-    h3 { margin-top: 0; }
-    .form { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
-    .form input { padding: 6px 8px; }
-    .item { padding: 8px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
-    button { margin-right: 4px; }
+    .row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    h3 { margin: 0; flex: 1; }
+    .search { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); width: 220px; }
+    .form { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: 6px; }
+    .form input { padding: 6px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); }
+    .item { padding: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .info { display: flex; gap: 10px; align-items: center; }
+    .badge { font-size: 11px; background: var(--border); padding: 2px 8px; border-radius: 10px; }
+    .dim { color: var(--fg-dim); font-size: 12px; }
+    .actions { display: flex; gap: 6px; }
+    button { padding: 5px 12px; border-radius: 6px; border: none; background: var(--accent); color: #fff; cursor: pointer; }
+    button:disabled { opacity: 0.5; }
+    .empty { text-align: center; padding: 32px; color: var(--fg-dim); }
+    .empty button { margin-top: 8px; }
   `],
 })
 export class ReposSectionComponent {
   protected readonly list = signal<Repo[]>([]);
-  protected readonly showAdd = signal(false);
+  protected readonly search = signal('');
+  protected readonly editing = signal<'new' | string | null>(null);
+  protected readonly saving = signal(false);
+  protected readonly form = {
+    name: '', remoteUrl: '', localPath: '', defaultBranch: 'main', cloneNow: false,
+  };
 
-  constructor() {
-    this.load();
+  constructor() { this.load(); }
+
+  protected get filtered() {
+    return () => {
+      const s = this.search().toLowerCase();
+      return s ? this.list().filter((r) => r.name.toLowerCase().includes(s) || r.remoteUrl.toLowerCase().includes(s)) : this.list();
+    };
   }
 
-  protected async load(): Promise<void> {
-    this.list.set(await (await getTrpc()).repos.list.query());
+  protected openCreate(): void {
+    this.editing.set('new');
+    this.form.name = '';
+    this.form.remoteUrl = '';
+    this.form.localPath = '';
+    this.form.defaultBranch = 'main';
+    this.form.cloneNow = false;
   }
 
-  protected async add(name: string, url: string, path: string, cloneNow: boolean): Promise<void> {
-    await (await getTrpc()).repos.add.mutate({ name, remoteUrl: url, localPath: path, cloneNow });
-    this.showAdd.set(false);
-    await this.load();
+  protected openEdit(r: Repo): void {
+    this.editing.set(r.id);
+    this.form.name = r.name;
+    this.form.remoteUrl = r.remoteUrl;
+    this.form.localPath = r.localPath;
+    this.form.defaultBranch = r.defaultBranch;
+    this.form.cloneNow = false;
+  }
+
+  protected cancel(): void {
+    this.editing.set(null);
+  }
+
+  protected async save(): Promise<void> {
+    this.saving.set(true);
+    try {
+      const id = this.editing();
+      if (id === 'new') {
+        await (await getTrpc()).repos.add.mutate({
+          name: this.form.name,
+          remoteUrl: this.form.remoteUrl,
+          localPath: this.form.localPath,
+          defaultBranch: this.form.defaultBranch,
+          cloneNow: this.form.cloneNow,
+        });
+      } else if (id) {
+        await (await getTrpc()).repos.update.mutate({
+          id,
+          defaultBranch: this.form.defaultBranch,
+        });
+      }
+      this.editing.set(null);
+      await this.load();
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   protected async remove(id: string): Promise<void> {
+    if (!confirm('Delete this repository?')) return;
     await (await getTrpc()).repos.remove.mutate({ id });
     await this.load();
+  }
+
+  private async load(): Promise<void> {
+    this.list.set(await (await getTrpc()).repos.list.query());
   }
 }
