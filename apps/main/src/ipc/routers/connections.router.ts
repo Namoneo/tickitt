@@ -7,7 +7,7 @@ import { ConnectionService } from '../../services/connection-service.js';
 import type { TicketSource } from '../../connectors/ticket-source.js';
 
 const CreateConnectionInput = z.object({
-  kind: z.enum(['jira', 'github']),
+  kind: z.enum(['jira', 'github', 'linear']),
   label: z.string().min(1).max(100),
   config: z.record(z.unknown()),
   secret: z.string().min(1),
@@ -35,6 +35,37 @@ export const connectionsRouter = router({
       if (!row) throw new Error('Insert failed');
       await Keychain.set(row.secretRef, input.secret);
       return row;
+    }),
+
+  testTransientLinear: publicProcedure
+    .input(z.object({ apiKey: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const { LinearTicketSource } = await import('../../connectors/linear/linear.adapter.js');
+      const src = new LinearTicketSource(input.apiKey, { stateTypes: ['unstarted', 'started'], onlyAssignedToMe: true });
+      return src.test();
+    }),
+
+  updateLinear: publicProcedure
+    .input(z.object({
+      id: z.string(),
+      label: z.string().min(1).max(100).optional(),
+      config: z.record(z.unknown()).optional(),
+      apiKey: z.string().min(1).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const [row] = ctx.db.select().from(connections).where(eq(connections.id, input.id)).all();
+      if (!row || row.kind !== 'linear') throw new Error('Linear connection not found');
+      const patch: Partial<typeof row> = {};
+      if (input.label !== undefined) patch.label = input.label;
+      if (input.config !== undefined) patch.configJson = input.config;
+      if (Object.keys(patch).length > 0) {
+        ctx.db.update(connections).set(patch).where(eq(connections.id, input.id)).run();
+      }
+      if (input.apiKey) {
+        await Keychain.set(row.secretRef, input.apiKey);
+      }
+      ctx.connectionService.invalidate(row.id);
+      return { ok: true as const };
     }),
 
   updateGithub: publicProcedure

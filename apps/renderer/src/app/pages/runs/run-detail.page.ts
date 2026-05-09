@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { getTrpc } from '../../core/ipc/trpc.client';
 import { RunStreamService } from '../../core/ipc/run-stream.service';
 import { RunStateBadgeComponent } from '../../shared/ui/run-state-badge.component';
@@ -26,7 +25,7 @@ interface RunDetail {
   selector: 'tk-run-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, RunStateBadgeComponent, EventListComponent, DiffViewerComponent, RequestChangesDialogComponent],
+  imports: [RunStateBadgeComponent, EventListComponent, DiffViewerComponent, RequestChangesDialogComponent],
   template: `
     @if (run(); as r) {
       <header>

@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@linear/sdk": "^84.0.0",
     "@octokit/rest": "^22.0.1",
     "@tickitt/db": "workspace:*",
     "@tickitt/shared-types": "workspace:*",

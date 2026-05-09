@@ -29,7 +29,7 @@ export const repos = sqliteTable('repos', {
 
 export const connections = sqliteTable('connections', {
   id: id(),
-  kind: text('kind', { enum: ['jira', 'github'] }).notNull(),
+  kind: text('kind', { enum: ['jira', 'github', 'linear'] }).notNull(),
   label: text('label').notNull(),
   configJson: text('config_json', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
   secretRef: text('secret_ref').notNull(),

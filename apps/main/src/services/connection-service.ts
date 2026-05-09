@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { connections } from '@tickitt/db';
 import { JiraCloudTicketSource } from '../connectors/jira-cloud.js';
 import { GitHubCodeHost } from '../connectors/github.js';
+import { LinearTicketSource } from '../connectors/linear/linear.adapter.js';
 import type { TicketSource } from '../connectors/ticket-source.js';
 import type { CodeHost } from '../connectors/code-host.js';
 
@@ -60,6 +61,9 @@ export class ConnectionService {
     }
     if (conn.kind === 'github') {
       return GitHubCodeHost.fromConnection(conn.secretRef, conn.configJson);
+    }
+    if (conn.kind === 'linear') {
+      return LinearTicketSource.fromConnection(conn.secretRef, conn.configJson);
     }
     throw new Error(`Unknown connection kind: ${conn.kind}`);
   }

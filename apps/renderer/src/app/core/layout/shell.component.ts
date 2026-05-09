@@ -8,6 +8,7 @@ import { RunStreamService } from '../ipc/run-stream.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
+    @let runStats = stats();
     <div class="layout">
       <aside>
         <h1>Tickitt</h1>
@@ -15,23 +16,21 @@ import { RunStreamService } from '../ipc/run-stream.service';
           <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
           <a routerLink="/runs" routerLinkActive="active">
             Runs
-            @let s = stats();
-            @if (s.active || s.queued || s.awaiting || s.failed) {
+            @if (runStats.active || runStats.queued || runStats.awaiting || runStats.failed) {
               <span class="badge"
-                [class.warn]="s.failed > 0"
-                [class.ok]="s.failed === 0 && (s.active > 0 || s.awaiting > 0)">
-                {{ s.active + s.queued + s.awaiting + s.failed }}
+                [class.warn]="runStats.failed > 0"
+                [class.ok]="runStats.failed === 0 && (runStats.active > 0 || runStats.awaiting > 0)">
+                {{ runStats.active + runStats.queued + runStats.awaiting + runStats.failed }}
               </span>
             }
           </a>
           <a routerLink="/settings" routerLinkActive="active">Settings</a>
         </nav>
         <div class="stats">
-          @let s = stats();
-          @if (s.active) { <span class="row"><b>{{ s.active }}</b> active</span> }
-          @if (s.queued) { <span class="row"><b>{{ s.queued }}</b> queued</span> }
-          @if (s.awaiting) { <span class="row"><b>{{ s.awaiting }}</b> awaiting review</span> }
-          @if (s.failed) { <span class="row warn"><b>{{ s.failed }}</b> failed</span> }
+          @if (runStats.active) { <span class="row"><b>{{ runStats.active }}</b> active</span> }
+          @if (runStats.queued) { <span class="row"><b>{{ runStats.queued }}</b> queued</span> }
+          @if (runStats.awaiting) { <span class="row"><b>{{ runStats.awaiting }}</b> awaiting review</span> }
+          @if (runStats.failed) { <span class="row warn"><b>{{ runStats.failed }}</b> failed</span> }
         </div>
       </aside>
       <main>
