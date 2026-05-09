@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { signal, computed } from '@angular/core';
 import { subscribeRunEvents, type RunEventPayload } from './run-events.bridge.js';
 
 interface EventEntry {
