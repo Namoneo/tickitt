@@ -1,26 +1,11 @@
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+// Monaco setup for Angular renderer
+// We import the full editor for now (workers disabled via webpack config if needed)
+import * as monaco from 'monaco-editor';
 
-// Disable workers — basic-languages provide tokenisation synchronously.
+// Disable workers globally
 (self as any).MonacoEnvironment = {
-  getWorker(): Worker { return new Worker('data:application/javascript,'); },
+  getWorker: () => null as any,
 };
-
-// Pull in only the language contributions we display in the diff viewer.
-import 'monaco-editor/esm/vs/basic-languages/typescript/typescript.contribution';
-import 'monaco-editor/esm/vs/basic-languages/javascript/javascript.contribution';
-import 'monaco-editor/esm/vs/basic-languages/json/json.contribution';
-import 'monaco-editor/esm/vs/basic-languages/html/html.contribution';
-import 'monaco-editor/esm/vs/basic-languages/css/css.contribution';
-import 'monaco-editor/esm/vs/basic-languages/scss/scss.contribution';
-import 'monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution';
-import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
-import 'monaco-editor/esm/vs/basic-languages/python/python.contribution';
-import 'monaco-editor/esm/vs/basic-languages/go/go.contribution';
-import 'monaco-editor/esm/vs/basic-languages/rust/rust.contribution';
-import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution';
-import 'monaco-editor/esm/vs/basic-languages/sql/sql.contribution';
-import 'monaco-editor/esm/vs/basic-languages/xml/xml.contribution';
-import 'monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution';
 
 monaco.editor.defineTheme('tickitt-dark', {
   base: 'vs-dark',

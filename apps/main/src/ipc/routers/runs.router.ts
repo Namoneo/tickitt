@@ -60,7 +60,9 @@ export const runsRouter = router({
   approve: publicProcedure
     .input(z.object({ id: z.string(), commitMessage: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.orchestrator.approve(input.id, { commitMessage: input.commitMessage });
+      const res = await ctx.orchestrator.approve(input.id, { commitMessage: input.commitMessage });
+      // Cast to any to include additional fields the orchestrator may not return yet
+      return res as { prUrl: string; pushedAt: Date; jiraCommentOk?: boolean; jiraTransitionResult?: { ok: boolean; appliedName?: string; available?: string[] } };
     }),
 
   discard: publicProcedure

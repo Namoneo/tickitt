@@ -96,7 +96,7 @@ export class RunOrchestrator {
     }
   }
 
-  async approve(runId: string, opts?: { commitMessage?: string }): Promise<{ prUrl: string; pushedAt: Date }> {
+  async approve(runId: string, opts?: { commitMessage?: string | undefined }): Promise<{ prUrl: string; pushedAt: Date }> {
     if (!this.push) throw new Error('PushService not configured');
     const run = this.persistence.getRun(runId);
     if (!run) throw new Error('Run not found');
