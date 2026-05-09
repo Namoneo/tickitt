@@ -48,12 +48,16 @@ export class PushService {
       await wt.commit(msg);
     }
 
-    // 2. Push with PAT-injected URL (temporary).
-    const authUrl = `https://x-access-token:${pat}@github.com/${owner}/${name}.git`;
+    // 2. Push with PAT via http.extraHeader (avoids PAT in URL/logs).
+    const authHeader = `Authorization: Basic ${Buffer.from(`x-access-token:${pat}`).toString('base64')}`;
+    const remoteUrl = `https://github.com/${owner}/${name}.git`;
+    await wt.addConfig('http.extraHeader', authHeader, false, 'local');
     try {
-      await wt.push(authUrl, `HEAD:refs/heads/${run.branchName}`, ['-u']);
+      await wt.push(remoteUrl, `HEAD:refs/heads/${run.branchName}`, ['-u']);
     } catch (err) {
       throw new Error(`git push failed: ${(err as Error).message}`);
+    } finally {
+      await wt.raw(['config', '--local', '--unset', 'http.extraHeader']).catch(() => undefined);
     }
 
     const pushedAt = new Date();

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, input, OnDestroy, signal, viewChild } from '@angular/core';
 import { TRPC } from '../../core/ipc/trpc.token';
 import { monaco } from '../../core/monaco/monaco-setup';
 
@@ -56,7 +56,7 @@ interface FileEntry {
     .dim { color: var(--fg-dim); padding: 12px; }
   `],
 })
-export class DiffViewerComponent {
+export class DiffViewerComponent implements OnDestroy {
   private readonly trpc = inject(TRPC);
   readonly runId = input.required<string>();
   readonly files = input.required<FileEntry[]>();
@@ -75,6 +75,10 @@ export class DiffViewerComponent {
         this.select(list.find((f) => !f.isBinary)?.path ?? list[0]!.path);
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.disposeEditor();
   }
 
   protected async select(path: string): Promise<void> {

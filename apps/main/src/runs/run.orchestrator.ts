@@ -145,10 +145,9 @@ export class RunOrchestrator {
     if (!run.sessionId) {
       throw new Error('No agent session id captured; cannot resume. Discard and start fresh.');
     }
-    this.db.update(runs)
-      .set({ iterationCount: (run.iterationCount ?? 0) + 1 })
-      .where(eq(runs.id, runId))
-      .run();
+    this.persistence.incrementIteration(runId);
+    this.persistence.updateState(runId, 'queued');
+    this.stream.publish({ kind: 'state', runId, state: 'queued' });
     this.queue.submit({
       runId,
       fn: () => this.executeContinuation(runId, feedback),

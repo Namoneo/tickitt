@@ -17,8 +17,8 @@ export const runsRouter = router({
         ? ctx.db.select().from(tickets).where(inArray(tickets.id, ticketIds as any)).all()
         : [];
       const ticketMap = new Map(ticketRows.map((t) => [t.id, t]));
-      // Compute blockedBy (another queued/preparing/running run on the same repo)
-      const activeRuns = runRows.filter((r) => ['queued','preparing','running'].includes(r.state));
+      // Compute blockedBy using a separate unfiltered query for active runs
+      const activeRuns = ctx.orchestrator.listRuns({ states: ['queued', 'preparing', 'running'] });
       return runRows.map((r) => {
         const blockedBy = r.state === 'queued'
           ? activeRuns.find((a) => a.repoId === r.repoId && a.id !== r.id)?.id ?? null

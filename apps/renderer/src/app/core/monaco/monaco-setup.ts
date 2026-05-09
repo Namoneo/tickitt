@@ -2,9 +2,12 @@
 // We import the full editor for now (workers disabled via webpack config if needed)
 import * as monaco from 'monaco-editor';
 
-// Disable workers globally
+// Use no-op blob workers — avoids Monaco's postMessage errors without a bundler worker plugin
 (self as any).MonacoEnvironment = {
-  getWorker: () => null as any,
+  getWorker(_moduleId: string, _label: string): Worker {
+    const blob = new Blob([''], { type: 'application/javascript' });
+    return new Worker(URL.createObjectURL(blob));
+  },
 };
 
 monaco.editor.defineTheme('tickitt-dark', {

@@ -49,6 +49,12 @@ export function createRunPersistence(db: Db) {
       return q.orderBy(desc(runs.createdAt)).all();
     },
 
+    incrementIteration(runId: string): void {
+      const row = db.select().from(runs).where(eq(runs.id, runId)).all()[0];
+      if (!row) return;
+      db.update(runs).set({ iterationCount: (row.iterationCount ?? 0) + 1 }).where(eq(runs.id, runId)).run();
+    },
+
     getEvents(runId: string, limit = 500): RunEvent[] {
       return db.select().from(runEvents)
         .where(eq(runEvents.runId, runId))

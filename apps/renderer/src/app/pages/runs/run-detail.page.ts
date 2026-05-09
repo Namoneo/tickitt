@@ -123,7 +123,7 @@ export class RunDetailPage {
     return d.files.map((f: any) => ({ path: f.path, status: f.status, isBinary: f.isBinary }));
   });
 
-  protected readonly closeRequestDialogFn = () => this.closeRequestDialog.bind(this);
+  protected readonly closeRequestDialogFn = () => this.closeRequestDialog();
 
   constructor() {
     effect(() => {
