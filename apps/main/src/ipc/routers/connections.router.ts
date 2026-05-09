@@ -4,6 +4,7 @@ import { connections } from '@tickitt/db';
 import { router, publicProcedure } from '../trpc.js';
 import { Keychain } from '../../secrets/keychain.js';
 import { ConnectionService } from '../../services/connection-service.js';
+import type { TicketSource } from '../../connectors/ticket-source.js';
 
 const CreateConnectionInput = z.object({
   kind: z.enum(['jira', 'github']),
@@ -53,7 +54,7 @@ export const connectionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const [row] = ctx.db.select().from(connections).where(eq(connections.id, input.id)).all();
       if (!row) return { ok: false as const, error: 'Connection not found' };
-      const adapter = await ctx.connectionService.getAdapter(row);
+      const adapter = await ctx.connectionService.getAdapter(row) as TicketSource;
       return adapter.test();
     }),
 });

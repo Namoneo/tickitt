@@ -31,4 +31,7 @@ export interface FetchTicketsResult {
 export interface TicketSource {
   test(): Promise<TestResult>;
   fetchTickets(opts: FetchTicketsOptions): Promise<FetchTicketsResult>;
+  // NEW (P4)
+  addCommentLinkingPr(issueKey: string, prUrl: string, ticketTitle: string): Promise<void>;
+  transitionByName(issueKey: string, statusName: string): Promise<{ ok: boolean; available?: string[] }>;
 }

@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import type { TestResult, TicketDTO, FetchTicketsOptions, FetchTicketsResult, TicketSource } from './ticket-source.js';
-import type { CodeHost, RemoteRepoDTO } from './code-host.js';
+import type { CodeHost, RemoteRepoDTO, CreatePullRequestInput, PullRequestRef } from './code-host.js';
 import { Keychain } from '../secrets/keychain.js';
 
 export interface GitHubConnectionConfig {
@@ -8,7 +8,7 @@ export interface GitHubConnectionConfig {
   token: string;
 }
 
-export class GitHubCodeHost implements CodeHost, TicketSource {
+export class GitHubCodeHost implements CodeHost {
   private readonly octokit: Octokit;
   private readonly owner: string;
 
@@ -53,34 +53,20 @@ export class GitHubCodeHost implements CodeHost, TicketSource {
     return `https://github.com/${owner}/${name}.git`;
   }
 
-  async fetchTickets(opts: FetchTicketsOptions): Promise<FetchTicketsResult> {
-    const q = opts.jql;
-    const { data } = await this.octokit.rest.search.issuesAndPullRequests({
-      q: `repo:${this.owner}/${q} is:issue`,
-      per_page: opts.pageSize ?? 100,
+  async createPullRequest(input: CreatePullRequestInput): Promise<PullRequestRef> {
+    const { data } = await this.octokit.rest.pulls.create({
+      owner: input.owner,
+      repo: input.repo,
+      title: input.title,
+      body: input.body,
+      head: input.head,
+      base: input.base,
     });
 
-    let newCursor: string | null = null;
-    const tickets: TicketDTO[] = data.items.map((issue) => {
-      const updated = issue.updated_at ? new Date(issue.updated_at) : new Date();
-      const updatedIso = issue.updated_at ?? new Date().toISOString();
-      if (!newCursor || updated > new Date(newCursor)) {
-        newCursor = updatedIso;
-      }
-      return {
-        externalId: String(issue.id),
-        key: `${issue.number}`,
-        title: issue.title,
-        body: issue.body ?? null,
-        status: issue.state,
-        statusCategory: issue.state === 'open' ? 'todo' : 'done',
-        assignee: issue.assignee?.login ?? null,
-        url: issue.html_url,
-        externalUpdatedAt: updated,
-        raw: issue as unknown as Record<string, unknown>,
-      };
-    });
-
-    return { tickets, newCursor };
+    return {
+      number: data.number,
+      url: data.url,
+      htmlUrl: data.html_url,
+    };
   }
 }

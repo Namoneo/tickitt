@@ -2,6 +2,7 @@ import { eq, and } from 'drizzle-orm';
 import type { Db, Connection, Ticket } from '@tickitt/db';
 import { connections, tickets } from '@tickitt/db';
 import type { ConnectionService } from './connection-service.js';
+import type { TicketSource } from '../connectors/ticket-source.js';
 
 export interface SyncJob {
   connectionId: string;
@@ -44,7 +45,7 @@ export class TicketSyncService {
     const [conn] = this.db.select().from(connections).where(eq(connections.id, job.connectionId)).all();
     if (!conn || conn.status !== 'active') return { inserted: 0, updated: 0 };
 
-    const adapter = await this.connectionService.getAdapter(conn);
+    const adapter = await this.connectionService.getAdapter(conn) as TicketSource;
     const jql = conn.kind === 'jira'
       ? String(conn.configJson.jql ?? 'assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC')
       : String(conn.configJson.repo ?? '');

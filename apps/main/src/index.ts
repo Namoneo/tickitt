@@ -22,7 +22,7 @@ async function bootstrap(): Promise<void> {
   const paths = resolveAppPaths();
   const db = await initDatabase(paths);
 
-  const connectionService = new ConnectionService();
+  const connectionService = new ConnectionService(db);
   const ticketSync = new TicketSyncService(db, connectionService);
 
   const repoMutex = new RepoMutex();

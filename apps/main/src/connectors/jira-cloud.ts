@@ -1,11 +1,13 @@
 import type { TestResult, TicketDTO, FetchTicketsOptions, FetchTicketsResult, TicketSource } from '../connectors/ticket-source.js';
 import { Keychain } from '../secrets/keychain.js';
+import { adfPrComment } from './jira/adf.js';
 
 export interface JiraConnectionConfig {
   baseUrl: string;
   email: string;
   /** Encrypted API token. */
   token: string;
+  transitionOnPrOpen?: string;
 }
 
 function toBase64(str: string): string {
@@ -113,6 +115,28 @@ export class JiraCloudTicketSource implements TicketSource {
     });
 
     return { tickets, newCursor };
+  }
+
+  async addCommentLinkingPr(issueKey: string, prUrl: string, ticketTitle: string): Promise<void> {
+    await this.api(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`, {
+      method: 'POST',
+      body: JSON.stringify({ body: adfPrComment(prUrl, ticketTitle) }),
+    });
+  }
+
+  async transitionByName(issueKey: string, statusName: string): Promise<{ ok: boolean; available?: string[] }> {
+    const data = await this.api(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/transitions`) as {
+      transitions: Array<{ id: string; name: string }>;
+    };
+    const target = data.transitions.find((t) => t.name.toLowerCase() === statusName.toLowerCase());
+    if (!target) {
+      return { ok: false, available: data.transitions.map((t) => t.name) };
+    }
+    await this.api(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/transitions`, {
+      method: 'POST',
+      body: JSON.stringify({ transition: { id: target.id } }),
+    });
+    return { ok: true };
   }
 }
 

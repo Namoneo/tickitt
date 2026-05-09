@@ -32,3 +32,11 @@ export type PromptContext = {
   ticketBody: string | null;
   repoName: string;
 };
+
+export interface WorktreeInfo {
+  path: string;
+  branchName: string;
+  baseBranch: string;
+  baseSha: string;
+  repoId: string;
+}

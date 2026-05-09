@@ -1,15 +1,17 @@
-import type { Connection } from '@tickitt/db';
+import type { Connection, Db } from '@tickitt/db';
+import { eq } from 'drizzle-orm';
+import { connections } from '@tickitt/db';
 import { JiraCloudTicketSource } from '../connectors/jira-cloud.js';
 import { GitHubCodeHost } from '../connectors/github.js';
 import type { TicketSource } from '../connectors/ticket-source.js';
 import type { CodeHost } from '../connectors/code-host.js';
 
-type Adapter = TicketSource | (TicketSource & CodeHost);
-
 export class ConnectionService {
-  private readonly cache = new Map<string, Adapter>();
+  private readonly cache = new Map<string, TicketSource | CodeHost>();
 
-  async getAdapter(conn: Connection): Promise<Adapter> {
+  constructor(private readonly db: Db) {}
+
+  async getAdapter(conn: Connection): Promise<TicketSource | CodeHost> {
     const cached = this.cache.get(conn.id);
     if (cached) return cached;
 
@@ -18,11 +20,41 @@ export class ConnectionService {
     return adapter;
   }
 
+  /** Get a CodeHost adapter (for GitHub connections). */
+  async getCodeHost(connId: string): Promise<CodeHost> {
+    const conn = this.requireConnection(connId);
+    const adapter = await this.getAdapter(conn);
+    if (!('createPullRequest' in adapter)) {
+      throw new Error(`Connection ${connId} is not a valid CodeHost`);
+    }
+    return adapter as CodeHost;
+  }
+
+  /** Get a TicketSource adapter (for Jira connections). */
+  async getTicketSource(connId: string): Promise<TicketSource> {
+    const conn = this.requireConnection(connId);
+    const adapter = await this.getAdapter(conn);
+    if (!('addCommentLinkingPr' in adapter)) {
+      throw new Error(`Connection ${connId} is not a valid TicketSource`);
+    }
+    return adapter as TicketSource;
+  }
+
   evict(connectionId: string): void {
     this.cache.delete(connectionId);
   }
 
-  private async buildAdapter(conn: Connection): Promise<Adapter> {
+  invalidate(connectionId: string): void {
+    this.cache.delete(connectionId);
+  }
+
+  private requireConnection(id: string): Connection {
+    const [row] = this.db.select().from(connections).where(eq(connections.id, id)).all();
+    if (!row) throw new Error(`Connection ${id} not found`);
+    return row;
+  }
+
+  private async buildAdapter(conn: Connection): Promise<TicketSource | CodeHost> {
     if (conn.kind === 'jira') {
       return JiraCloudTicketSource.fromConnection(conn.secretRef, conn.configJson);
     }

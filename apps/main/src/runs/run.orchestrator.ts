@@ -7,13 +7,15 @@ import type { RunHandle, AgentEvent } from '../agents/agent.types.js';
 import { RunQueue } from './run.queue.js';
 import { RunStream } from './run.stream.js';
 import { createRunPersistence, type RunPersistence } from './run.persistence.js';
-import { buildPrompt } from './prompt.js';
+import { buildPrompt, buildContinuationPrompt } from './prompt.js';
 import type { PromptContext } from './run.types.js';
+import type { PushService } from '../services/push.service.js';
 
 export class RunOrchestrator {
   private readonly queue = new RunQueue();
   private readonly persistence: RunPersistence;
   private readonly handles = new Map<string, RunHandle>();
+  private readonly cancelledRuns = new Set<string>();
 
   constructor(
     private readonly db: Db,
@@ -21,6 +23,7 @@ export class RunOrchestrator {
     private readonly worktrees: WorktreeService,
     private readonly registry: AgentRegistry,
     private readonly stream: RunStream,
+    private readonly push?: PushService,
   ) {
     this.persistence = createRunPersistence(db);
     this.queue.onChange((stats) => {
@@ -76,12 +79,14 @@ export class RunOrchestrator {
   }
 
   async cancel(runId: string): Promise<void> {
+    this.cancelledRuns.add(runId);
     const run = this.persistence.getRun(runId);
     if (!run) throw new Error(`Run not found: ${runId}`);
 
     if (run.state === 'queued') {
       this.persistence.updateState(runId, 'abandoned');
       this.stream.publish({ kind: 'state', runId, state: 'abandoned' });
+      this.cancelledRuns.delete(runId);
       return;
     }
 
@@ -89,6 +94,58 @@ export class RunOrchestrator {
     if (handle) {
       await handle.cancel();
     }
+  }
+
+  async approve(runId: string, opts?: { commitMessage?: string }): Promise<{ prUrl: string; pushedAt: Date }> {
+    if (!this.push) throw new Error('PushService not configured');
+    const run = this.persistence.getRun(runId);
+    if (!run) throw new Error('Run not found');
+    if (run.state !== 'awaiting_review') {
+      throw new Error(`Approve allowed only from awaiting_review (was ${run.state})`);
+    }
+    return this.push.approve({ runId, commitMessage: opts?.commitMessage });
+  }
+
+  async discard(runId: string): Promise<void> {
+    const run = this.persistence.getRun(runId);
+    if (!run) throw new Error('Run not found');
+    if (!['awaiting_review', 'failed'].includes(run.state)) {
+      throw new Error(`Discard allowed only from awaiting_review or failed (was ${run.state})`);
+    }
+    // Best-effort filesystem cleanup
+    try {
+      await this.worktrees.remove({
+        repoId: run.repoId,
+        worktreePath: run.worktreePath,
+        deleteBranch: true,
+      });
+    } catch {
+      // ignore
+    }
+    this.persistence.updateState(runId, 'abandoned');
+    this.stream.publish({ kind: 'state', runId, state: 'abandoned' });
+  }
+
+  async requestChanges(runId: string, feedback: string): Promise<void> {
+    const run = this.persistence.getRun(runId);
+    if (!run) throw new Error('Run not found');
+    if (run.state !== 'awaiting_review') {
+      throw new Error(`Request Changes allowed only from awaiting_review (was ${run.state})`);
+    }
+    if (run.iterationCount >= 3) {
+      throw new Error('Iteration cap reached (3). Approve or discard instead.');
+    }
+    if (!run.sessionId) {
+      throw new Error('No agent session id captured; cannot resume. Discard and start fresh.');
+    }
+    this.db.update(runs)
+      .set({ iterationCount: (run.iterationCount ?? 0) + 1 })
+      .where(eq(runs.id, runId))
+      .run();
+    this.queue.submit({
+      runId,
+      fn: () => this.executeContinuation(runId, feedback),
+    });
   }
 
   private async execute(
@@ -109,8 +166,8 @@ export class RunOrchestrator {
         base: repo.defaultBranch,
       });
 
-      // Update worktree path
-      this.db.update(runs).set({ worktreePath: wt.path }).where(eq(runs.id, runId)).run();
+      // Persist baseSha and worktreePath
+      this.db.update(runs).set({ worktreePath: wt.path, baseSha: wt.baseSha }).where(eq(runs.id, runId)).run();
 
       this.persistence.updateState(runId, 'running');
       this.stream.publish({ kind: 'state', runId, state: 'running' });
@@ -143,12 +200,34 @@ export class RunOrchestrator {
         });
       }
 
+      // Capture sessionId for continuation
+      const sid = await handle.sessionId;
+      if (sid) {
+        this.db.update(runs).set({ sessionId: sid }).where(eq(runs.id, runId)).run();
+      }
+
       const code = await handle.exitCode;
       this.handles.delete(runId);
 
-      if (code !== 0 && code !== null) {
-        this.persistence.updateState(runId, 'failed', `Agent exited with code ${code}`);
-        this.stream.publish({ kind: 'state', runId, state: 'failed', error: `Agent exited with code ${code}` });
+      const wasCancelled = this.cancelledRuns.delete(runId);
+      let next: 'abandoned' | 'failed' | 'awaiting_review';
+      let errorMsg: string | undefined;
+
+      if (wasCancelled) {
+        next = 'abandoned';
+      } else if (code !== 0 && code !== null) {
+        next = 'failed';
+        errorMsg = `Agent exited with code ${code}`;
+      } else {
+        next = 'awaiting_review';
+      }
+
+      if (next === 'failed') {
+        this.persistence.updateState(runId, 'failed', errorMsg);
+        this.stream.publish({ kind: 'state', runId, state: 'failed', error: errorMsg });
+      } else if (next === 'abandoned') {
+        this.persistence.updateState(runId, 'abandoned');
+        this.stream.publish({ kind: 'state', runId, state: 'abandoned' });
       } else {
         this.persistence.updateState(runId, 'awaiting_review');
         this.stream.publish({ kind: 'state', runId, state: 'awaiting_review' });
@@ -158,6 +237,84 @@ export class RunOrchestrator {
       const msg = err instanceof Error ? err.message : String(err);
       this.persistence.updateState(runId, 'failed', msg);
       this.stream.publish({ kind: 'state', runId, state: 'failed', error: msg });
+    }
+  }
+
+  private async executeContinuation(runId: string, feedback: string): Promise<void> {
+    const run = this.persistence.getRun(runId);
+    if (!run) return;
+
+    const [ticket] = this.db.select().from(tickets).where(eq(tickets.id, run.ticketId)).limit(1).all();
+    const [agentRow] = this.db.select().from(agents).where(eq(agents.id, run.agentId)).limit(1).all();
+    if (!ticket || !agentRow) return;
+
+    this.persistence.updateState(runId, 'running');
+    this.stream.publish({ kind: 'state', runId, state: 'running' });
+
+    const adapter = this.registry.get(agentRow.kind as any);
+    let handle: RunHandle;
+    try {
+      handle = adapter.spawn({
+        cwd: run.worktreePath,
+        prompt: buildContinuationPrompt(feedback, {
+          path: run.worktreePath,
+          branchName: run.branchName,
+          baseBranch: '',
+          baseSha: run.baseSha ?? '',
+          repoId: run.repoId,
+        }, run.iterationCount ?? 0),
+        env: agentRow.envJson ?? {},
+        binaryPath: agentRow.binaryPath,
+        extraArgs: agentRow.argsJson ?? [],
+        resumeSessionId: run.sessionId ?? undefined,
+      });
+      this.handles.set(runId, handle);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.persistence.updateState(runId, 'failed', msg);
+      this.stream.publish({ kind: 'state', runId, state: 'failed', error: msg });
+      return;
+    }
+
+    let sawError = false;
+    try {
+      for await (const event of handle.events) {
+        if (event.type === 'error') sawError = true;
+        const dbId = this.persistence.appendEvent(runId, event);
+        this.stream.publish({ kind: 'event', runId, event: { type: event.type, payload: event }, eventDbId: dbId });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.persistence.updateState(runId, 'failed', msg);
+      this.stream.publish({ kind: 'state', runId, state: 'failed', error: msg });
+      return;
+    } finally {
+      this.handles.delete(runId);
+    }
+
+    const exitCode = await handle.exitCode;
+    const wasCancelled = this.cancelledRuns.delete(runId);
+    let next: 'abandoned' | 'failed' | 'awaiting_review';
+    let errorMsg: string | undefined;
+
+    if (wasCancelled) {
+      next = 'abandoned';
+    } else if (exitCode !== 0 || sawError) {
+      next = 'failed';
+      errorMsg = exitCode === 0 ? 'agent reported error' : `exit code ${exitCode}`;
+    } else {
+      next = 'awaiting_review';
+    }
+
+    if (next === 'failed') {
+      this.persistence.updateState(runId, 'failed', errorMsg ?? null);
+      this.stream.publish({ kind: 'state', runId, state: 'failed', error: errorMsg ?? null });
+    } else if (next === 'abandoned') {
+      this.persistence.updateState(runId, 'abandoned');
+      this.stream.publish({ kind: 'state', runId, state: 'abandoned' });
+    } else {
+      this.persistence.updateState(runId, 'awaiting_review');
+      this.stream.publish({ kind: 'state', runId, state: 'awaiting_review' });
     }
   }
 }
