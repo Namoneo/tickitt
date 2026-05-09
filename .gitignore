@@ -18,3 +18,7 @@ tickitt.db
 tickitt.db-journal
 tickitt.db-wal
 tickitt.db-shm
+dashboard.db
+
+# Runtime memory / session logs
+memory/
