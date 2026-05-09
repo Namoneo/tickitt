@@ -23,6 +23,9 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
   spawn(opts: SpawnOptions): RunHandle {
     const args = [...DEFAULT_ARGS, ...opts.extraArgs];
+    if (opts.resumeSessionId) {
+      args.push('--resume', opts.resumeSessionId);
+    }
     const child = spawn(opts.binaryPath, args, {
       cwd: opts.cwd,
       env: { ...process.env, ...opts.env, FORCE_COLOR: '0' },
@@ -43,8 +46,20 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       if (waiter) { const w = waiter; waiter = null; w(); }
     };
 
+    // Session ID capture for continuation (P4)
+    let sessionIdResolver!: (v: string | null) => void;
+    const sessionIdPromise = new Promise<string | null>((res) => { sessionIdResolver = res; });
+    let sessionIdResolved = false;
+    const resolveSession = (v: string | null): void => {
+      if (!sessionIdResolved) { sessionIdResolved = true; sessionIdResolver(v); }
+    };
+
     const stdoutParser = child.stdout!.pipe(ndjson.parse({ strict: false }));
     stdoutParser.on('data', (raw: CCStreamEvent) => {
+      // Capture session_id from system.init for continuation
+      if (raw.type === 'system' && (raw as any).subtype === 'init') {
+        resolveSession((raw as any).session_id ?? null);
+      }
       try {
         for (const ev of translateClaudeEvent(raw)) emit(ev);
       } catch (err) {
@@ -71,6 +86,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         if (stderrBuf.trim()) emit({ type: 'system', subtype: 'stderr', data: stderrBuf.trim() });
         closed = true;
         if (waiter) { const w = waiter; waiter = null; w(); }
+        resolveSession(null); // ensure sessionId resolves even if init never arrived
         resolve(code);
       });
       child.on('error', (err) => {
@@ -103,6 +119,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       events,
       exitCode: exit,
       cancel,
+      sessionId: sessionIdPromise,
     };
   }
 }

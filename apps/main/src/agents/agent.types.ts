@@ -23,6 +23,8 @@ export interface SpawnOptions {
   env?: Record<string, string>;
   binaryPath: string;
   extraArgs: string[];
+  /** When set, the agent should resume the prior session rather than start fresh. */
+  resumeSessionId?: string;
 }
 
 export interface RunHandle {
@@ -30,4 +32,6 @@ export interface RunHandle {
   events: AsyncIterable<AgentEvent>;
   exitCode: Promise<number | null>;
   cancel(): Promise<void>;
+  /** Resolves with the agent's session id (for resume), or null if it was never reported. */
+  sessionId: Promise<string | null>;
 }

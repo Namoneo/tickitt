@@ -29,7 +29,9 @@ describe('ClaudeCodeAdapter', () => {
     }
 
     const code = await handle.exitCode;
+    const sid = await handle.sessionId;
     expect(code).toBe(0);
+    expect(sid).toBeNull();
     expect(eventsOut.length).toBeGreaterThanOrEqual(2);
     expect(eventsOut.some((e) => e.type === 'text' && (e as any).content === 'hello')).toBe(true);
     expect(eventsOut.some((e) => e.type === 'usage')).toBe(true);

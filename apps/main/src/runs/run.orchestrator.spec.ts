@@ -47,6 +47,7 @@ class MockAdapter implements AgentAdapter {
       events,
       exitCode: exit,
       cancel: async () => { closed = true; if (waiter) { const w = waiter; waiter = null; w(); } },
+      sessionId: Promise.resolve(null),
     };
   }
 }
@@ -100,6 +101,7 @@ describe('RunOrchestrator', () => {
       id: 'stuck-1', ticketId: ticketRow.id, repoId: repoRow.id, agentId: agentRow.id,
       worktreePath: '/tmp', branchName: 'stuck', state: 'running',
       createdAt: new Date(),
+      baseSha: null, sessionId: null, iterationCount: 0, pushedAt: null,
     }).run();
 
     const recovered = orch.recoverOnBoot();
