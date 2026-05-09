@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Repo } from '@tickitt/db';
-import { getTrpc } from '../../core/ipc/trpc.client';
+import { getTrpc, isTickittIpcUnavailableError } from '../../core/ipc/trpc.client';
 
 @Component({
   selector: 'tk-repos-section',
@@ -84,7 +84,9 @@ export class ReposSectionComponent {
     name: '', remoteUrl: '', localPath: '', defaultBranch: 'main', cloneNow: false,
   };
 
-  constructor() { this.load(); }
+  constructor() {
+    void this.load();
+  }
 
   protected get filtered() {
     return () => {
@@ -147,6 +149,14 @@ export class ReposSectionComponent {
   }
 
   private async load(): Promise<void> {
-    this.list.set(await (await getTrpc()).repos.list.query());
+    try {
+      this.list.set(await (await getTrpc()).repos.list.query());
+    } catch (e) {
+      if (isTickittIpcUnavailableError(e)) {
+        this.list.set([]);
+        return;
+      }
+      console.error(e);
+    }
   }
 }

@@ -1,7 +1,18 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Agent } from '@tickitt/db';
-import { getTrpc } from '../../core/ipc/trpc.client';
+import { getTrpc, isTickittIpcUnavailableError } from '../../core/ipc/trpc.client';
+
+/** Sensible defaults when adding an agent (CLI names assume they are on your PATH). */
+const NEW_AGENT_PRESETS = {
+  'claude-code': { name: 'Claude Code', binaryPath: 'claude', args: '' },
+  codex: { name: 'Codex', binaryPath: 'codex', args: '' },
+  gemini: { name: 'Gemini', binaryPath: 'gemini', args: '' },
+  opencode: { name: 'OpenCode', binaryPath: 'opencode', args: '' },
+  cursor: { name: 'Cursor', binaryPath: 'cursor', args: '' },
+} as const;
+
+type NewAgentPresetKind = keyof typeof NEW_AGENT_PRESETS;
 
 @Component({
   selector: 'tk-agents-section',
@@ -18,7 +29,11 @@ import { getTrpc } from '../../core/ipc/trpc.client';
 
       @if (editing()) {
         <div class="form">
-          <select [(ngModel)]="form.kind" [disabled]="editing() !== 'new'">
+          <select
+            [(ngModel)]="form.kind"
+            (ngModelChange)="onNewAgentKindChange($event)"
+            [disabled]="editing() !== 'new'"
+          >
             <option value="claude-code">Claude Code</option>
             <option value="codex">Codex</option>
             <option value="gemini">Gemini</option>
@@ -87,7 +102,9 @@ export class AgentsSectionComponent {
   protected readonly saving = signal(false);
   protected readonly form = { kind: 'claude-code' as string, name: '', binaryPath: '', args: '' };
 
-  constructor() { this.load(); }
+  constructor() {
+    void this.load();
+  }
 
   protected get filtered() {
     return () => {
@@ -98,10 +115,22 @@ export class AgentsSectionComponent {
 
   protected openCreate(): void {
     this.editing.set('new');
-    this.form.kind = 'claude-code';
-    this.form.name = '';
-    this.form.binaryPath = '';
-    this.form.args = '';
+    this.applyNewAgentPreset('claude-code');
+  }
+
+  /** When creating an agent, refills name / binary / args from the selected kind. */
+  protected onNewAgentKindChange(kind: string): void {
+    if (this.editing() !== 'new') return;
+    this.applyNewAgentPreset(kind);
+  }
+
+  private applyNewAgentPreset(kind: string): void {
+    const key = (kind in NEW_AGENT_PRESETS ? kind : 'claude-code') as NewAgentPresetKind;
+    const preset = NEW_AGENT_PRESETS[key];
+    this.form.kind = key;
+    this.form.name = preset.name;
+    this.form.binaryPath = preset.binaryPath;
+    this.form.args = preset.args;
   }
 
   protected openEdit(a: Agent): void {
@@ -149,6 +178,14 @@ export class AgentsSectionComponent {
   }
 
   private async load(): Promise<void> {
-    this.list.set(await (await getTrpc()).agents.list.query());
+    try {
+      this.list.set(await (await getTrpc()).agents.list.query());
+    } catch (e) {
+      if (isTickittIpcUnavailableError(e)) {
+        this.list.set([]);
+        return;
+      }
+      console.error(e);
+    }
   }
 }

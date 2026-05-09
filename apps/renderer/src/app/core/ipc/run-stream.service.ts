@@ -1,4 +1,4 @@
-import { signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject, afterNextRender, DestroyRef } from '@angular/core';
 import { subscribeRunEvents, type RunEventPayload } from './run-events.bridge.js';
 
 interface EventEntry {
@@ -16,6 +16,7 @@ interface StreamData {
   state: RunState | null;
 }
 
+@Injectable()
 export class RunStreamService {
   private readonly streams = new Map<string, {
     events: ReturnType<typeof signal<EventEntry[]>>;
@@ -29,7 +30,26 @@ export class RunStreamService {
   readonly runStats = this.statsSig.asReadonly();
 
   constructor() {
-    subscribeRunEvents((payload) => this.handle(payload));
+    const dr = inject(DestroyRef);
+    const attach = (): boolean => {
+      const unsub = subscribeRunEvents((payload) => this.handle(payload));
+      if (unsub) {
+        dr.onDestroy(() => unsub());
+        return true;
+      }
+      return false;
+    };
+    if (!attach()) {
+      afterNextRender(() => {
+        if (!attach()) {
+          // Browser tab: no warn (shell banner already explains). Electron without runEvents: preload bug.
+          const w = typeof window !== 'undefined' ? (window as Window & { electronTRPC?: unknown }) : undefined;
+          if (w?.electronTRPC) {
+            console.warn('Tickitt: window.runEvents missing in Electron — check apps/main/src/preload.ts');
+          }
+        }
+      });
+    }
   }
 
   forRun(runId: string) {

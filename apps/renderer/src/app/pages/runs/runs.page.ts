@@ -1,7 +1,16 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+  computed,
+  afterNextRender,
+  DestroyRef,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { getTrpc } from '../../core/ipc/trpc.client';
+import { getTrpc, isTickittIpcUnavailableError } from '../../core/ipc/trpc.client';
 import { RunStreamService } from '../../core/ipc/run-stream.service';
 import { subscribeRunEvents } from '../../core/ipc/run-events.bridge';
 import { RunStateBadgeComponent } from '../../shared/ui/run-state-badge.component';
@@ -102,6 +111,7 @@ interface EnrichedRun {
 })
 export class RunsPage implements OnInit {
   private readonly stream = inject(RunStreamService);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly all = signal<EnrichedRun[]>([]);
   protected readonly toast = signal<string | null>(null);
 
@@ -128,23 +138,34 @@ export class RunsPage implements OnInit {
   });
 
   constructor() {
-    subscribeRunEvents((payload) => {
-      if (payload.kind === 'state' && payload.state) {
-        const known = this.all().some((r) => r.id === payload.runId);
-        if (known) {
-          this.liveStates.update((m) => new Map(m).set(payload.runId, payload.state!));
-          // Toast on awaiting_review transition
-          if (payload.state === 'awaiting_review') {
-            this.toast.set(`Run ${payload.runId.slice(0, 8)} is ready for review`);
-            setTimeout(() => this.toast.set(null), 6000);
+    const attach = (): boolean => {
+      const unsub = subscribeRunEvents((payload) => {
+        if (payload.kind === 'state' && payload.state) {
+          const known = this.all().some((r) => r.id === payload.runId);
+          if (known) {
+            this.liveStates.update((m) => new Map(m).set(payload.runId, payload.state!));
+            if (payload.state === 'awaiting_review') {
+              this.toast.set(`Run ${payload.runId.slice(0, 8)} is ready for review`);
+              setTimeout(() => this.toast.set(null), 6000);
+            }
+          } else {
+            void this.refresh();
           }
-        } else {
+        } else if (payload.kind === 'stats') {
           void this.refresh();
         }
-      } else if (payload.kind === 'stats') {
-        void this.refresh();
+      });
+      if (unsub) {
+        this.destroyRef.onDestroy(() => unsub());
+        return true;
       }
-    });
+      return false;
+    };
+    if (!attach()) {
+      afterNextRender(() => {
+        void attach();
+      });
+    }
   }
 
   ngOnInit(): void {
@@ -156,17 +177,25 @@ export class RunsPage implements OnInit {
   }
 
   private async refresh(): Promise<void> {
-    const list = await (await getTrpc()).runs.list.query({});
-    this.all.set(list.map((r: any) => ({
-      id: r.id,
-      state: r.state,
-      branchName: r.branchName,
-      ticketId: r.ticketId,
-      repoId: r.repoId,
-      startedAt: r.startedAt,
-      finishedAt: r.finishedAt,
-      ticket: r.ticket ? { key: r.ticket.key, title: r.ticket.title } : null,
-      blockedBy: r.blockedBy ?? null,
-    })));
+    try {
+      const list = await (await getTrpc()).runs.list.query({});
+      this.all.set(list.map((r: any) => ({
+        id: r.id,
+        state: r.state,
+        branchName: r.branchName,
+        ticketId: r.ticketId,
+        repoId: r.repoId,
+        startedAt: r.startedAt,
+        finishedAt: r.finishedAt,
+        ticket: r.ticket ? { key: r.ticket.key, title: r.ticket.title } : null,
+        blockedBy: r.blockedBy ?? null,
+      })));
+    } catch (e) {
+      if (isTickittIpcUnavailableError(e)) {
+        this.all.set([]);
+        return;
+      }
+      console.error(e);
+    }
   }
 }

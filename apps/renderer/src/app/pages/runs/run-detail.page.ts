@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { getTrpc } from '../../core/ipc/trpc.client';
+import { getTrpc, isTickittIpcUnavailableError } from '../../core/ipc/trpc.client';
 import { RunStreamService } from '../../core/ipc/run-stream.service';
 import { RunStateBadgeComponent } from '../../shared/ui/run-state-badge.component';
 import { EventListComponent } from '../../shared/ui/event-list.component';
@@ -147,7 +147,10 @@ export class RunDetailPage {
         this.run.set(detail.run);
         this.stream.seed(runId, detail.events);
         if (detail.run?.prUrl) this.prUrl.set(detail.run.prUrl);
-      })().catch((err) => console.error('Failed to load run:', err));
+      })().catch((err) => {
+        if (isTickittIpcUnavailableError(err)) return;
+        console.error('Failed to load run:', err);
+      });
     });
 
     effect(() => {
@@ -156,7 +159,8 @@ export class RunDetailPage {
           try {
             const d = await (await this.trpc()).runs.diffSummary.query({ id: this.id() });
             this.diff.set(d);
-          } catch {
+          } catch (e) {
+            if (!isTickittIpcUnavailableError(e)) console.error(e);
             this.diff.set(null);
           }
         })();

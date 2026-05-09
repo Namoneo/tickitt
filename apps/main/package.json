@@ -5,7 +5,8 @@
   "type": "module",
   "main": "./dist/index.cjs",
   "scripts": {
-    "dev": "tsup --watch --onSuccess \"electron ./dist/index.cjs --no-sandbox --disable-gpu\"",
+    "pretest": "cd ../.. && pnpm rebuild better-sqlite3 keytar",
+    "dev": "node ../../rebuild.js && tsup --watch --onSuccess \"electron ./dist/index.cjs --no-sandbox --disable-gpu\"",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'add eslint later'",

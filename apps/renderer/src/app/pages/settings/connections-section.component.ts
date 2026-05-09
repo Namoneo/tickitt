@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Connection } from '@tickitt/db';
-import { getTrpc } from '../../core/ipc/trpc.client';
+import { getTrpc, isTickittIpcUnavailableError } from '../../core/ipc/trpc.client';
 
 const LINEAR_STATE_TYPES = ['triage', 'backlog', 'unstarted', 'started', 'completed', 'canceled'] as const;
 
@@ -138,7 +138,9 @@ export class ConnectionsSectionComponent {
     transitionOnPrOpen: '',
   };
 
-  constructor() { this.load(); }
+  constructor() {
+    void this.load();
+  }
 
   protected get filtered() {
     return () => {
@@ -253,6 +255,14 @@ export class ConnectionsSectionComponent {
   }
 
   private async load(): Promise<void> {
-    this.list.set(await (await getTrpc()).connections.list.query());
+    try {
+      this.list.set(await (await getTrpc()).connections.list.query());
+    } catch (e) {
+      if (isTickittIpcUnavailableError(e)) {
+        this.list.set([]);
+        return;
+      }
+      console.error(e);
+    }
   }
 }

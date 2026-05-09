@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { getTrpc } from '../../core/ipc/trpc.client';
+import { getTrpc, isTickittIpcUnavailableError } from '../../core/ipc/trpc.client';
 
 @Component({
   selector: 'tk-max-concurrency-section',
@@ -34,10 +34,14 @@ export class MaxConcurrencySection implements OnInit {
   protected saving = signal(false);
 
   async ngOnInit(): Promise<void> {
-    const all = await (await getTrpc()).settings.all.query();
-    const v = (all?.['runs.maxConcurrent'] as number | undefined) ?? 3;
-    this.current.set(v);
-    this.value = v;
+    try {
+      const all = await (await getTrpc()).settings.all.query();
+      const v = (all?.['runs.maxConcurrent'] as number | undefined) ?? 3;
+      this.current.set(v);
+      this.value = v;
+    } catch (e) {
+      if (!isTickittIpcUnavailableError(e)) console.error(e);
+    }
   }
 
   async save(): Promise<void> {
@@ -45,6 +49,8 @@ export class MaxConcurrencySection implements OnInit {
     try {
       await (await getTrpc()).settings.set.mutate({ key: 'runs.maxConcurrent', value: Number(this.value) });
       this.current.set(Number(this.value));
+    } catch (e) {
+      if (!isTickittIpcUnavailableError(e)) console.error(e);
     } finally {
       this.saving.set(false);
     }

@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { RunStreamService } from '../ipc/run-stream.service';
+import { ELECTRON_TRPC_UNAVAILABLE, isTickittElectronShell } from '../ipc/trpc.client';
 
 @Component({
   selector: 'tk-shell',
@@ -8,6 +9,11 @@ import { RunStreamService } from '../ipc/run-stream.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
+    @if (!electronShell()) {
+      <div class="ipc-banner" role="status">
+        {{ electronBannerText }}
+      </div>
+    }
     @let runStats = stats();
     <div class="layout">
       <aside>
@@ -54,9 +60,20 @@ import { RunStreamService } from '../ipc/run-stream.service';
     .stats b { color: var(--fg); font-weight: 600; }
     .stats .warn b { color: #ef4444; }
     main { overflow: auto; padding: 24px 28px; }
+    .ipc-banner {
+      padding: 10px 16px;
+      background: rgba(245, 158, 11, 0.12);
+      border-bottom: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+      font-size: 13px;
+      line-height: 1.45;
+    }
   `],
 })
 export class ShellComponent {
   private readonly stream = inject(RunStreamService);
   protected readonly stats = this.stream.runStats;
+  /** Snapshot at init; preload is available before Angular if we are in Electron. */
+  protected readonly electronShell = signal(isTickittElectronShell());
+  protected readonly electronBannerText = ELECTRON_TRPC_UNAVAILABLE;
 }

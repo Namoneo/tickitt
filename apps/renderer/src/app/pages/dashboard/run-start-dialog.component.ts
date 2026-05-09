@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { getTrpc } from '../../core/ipc/trpc.client';
+import { getTrpc, isTickittIpcUnavailableError } from '../../core/ipc/trpc.client';
 
 @Component({
   selector: 'tk-run-start-dialog',
@@ -60,13 +60,22 @@ export class RunStartDialogComponent {
   }
 
   private async load(): Promise<void> {
-    const trpc = await getTrpc();
-    const [r, a] = await Promise.all([
-      trpc.repos.list.query(),
-      trpc.agents.list.query(),
-    ]);
-    this.repos.set(r);
-    this.agents.set(a.filter((x: any) => x.enabled));
+    try {
+      const trpc = await getTrpc();
+      const [r, a] = await Promise.all([
+        trpc.repos.list.query(),
+        trpc.agents.list.query(),
+      ]);
+      this.repos.set(r);
+      this.agents.set(a.filter((x: any) => x.enabled));
+    } catch (e) {
+      if (isTickittIpcUnavailableError(e)) {
+        this.repos.set([]);
+        this.agents.set([]);
+        return;
+      }
+      console.error(e);
+    }
   }
 
   protected async confirm(): Promise<void> {
