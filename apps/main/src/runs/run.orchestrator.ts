@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { agents, repos, tickets, runs, type Db } from '@tickitt/db';
 import type { AppPaths } from '../paths.js';
 import type { WorktreeService } from '../services/worktree.service.js';
@@ -32,6 +32,10 @@ export class RunOrchestrator {
     return this.persistence.recoverOnBoot();
   }
 
+  listRuns(opts?: { states?: string[]; ticketId?: string }) {
+    return this.persistence.listRuns(opts);
+  }
+
   async start(opts: { ticketId: string; repoId: string; agentId: string }): Promise<{ runId: string }> {
     const [ticket] = this.db.select().from(tickets).where(eq(tickets.id, opts.ticketId)).limit(1).all();
     if (!ticket) throw new Error(`Ticket not found: ${opts.ticketId}`);
@@ -44,6 +48,7 @@ export class RunOrchestrator {
     const branchName = `${ticket.key}-${runId.slice(0, 8)}`;
 
     this.persistence.insertRun({
+      id: runId,
       ticketId: opts.ticketId,
       repoId: opts.repoId,
       agentId: opts.agentId,
@@ -60,7 +65,7 @@ export class RunOrchestrator {
 
     this.queue.submit({
       runId,
-      fn: () => this.execute(runId, ticket, repo, agent),
+      fn: () => this.execute(runId, branchName, ticket, repo, agent),
     });
 
     return { runId };
@@ -84,6 +89,7 @@ export class RunOrchestrator {
 
   private async execute(
     runId: string,
+    branchName: string,
     ticket: { key: string; title: string; body: string | null },
     repo: { id: string; name: string; defaultBranch: string },
     agent: { kind: string; binaryPath: string; argsJson: string[]; envJson: Record<string, string> },
@@ -95,7 +101,7 @@ export class RunOrchestrator {
       const wt = await this.worktrees.create({
         repoId: repo.id,
         subdir: runId,
-        branchName: `${ticket.key}-${runId.slice(0, 8)}`,
+        branchName,
         base: repo.defaultBranch,
       });
 

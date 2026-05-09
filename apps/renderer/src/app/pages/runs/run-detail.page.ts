@@ -86,21 +86,25 @@ export class RunDetailPage {
   });
 
   constructor() {
-    effect(async () => {
+    effect(() => {
       const runId = this.id();
-      const detail = await (await this.trpc()).runs.get.query({ id: runId });
-      this.run.set(detail.run);
-      this.stream.seed(runId, detail.events);
+      void (async () => {
+        const detail = await (await this.trpc()).runs.get.query({ id: runId });
+        this.run.set(detail.run);
+        this.stream.seed(runId, detail.events);
+      })().catch((err) => console.error('Failed to load run:', err));
     });
 
-    effect(async () => {
+    effect(() => {
       if (this.terminalState() && !this.diff()) {
-        try {
-          const d = await (await this.trpc()).runs.diffSummary.query({ id: this.id() });
-          this.diff.set(d);
-        } catch {
-          this.diff.set(null);
-        }
+        void (async () => {
+          try {
+            const d = await (await this.trpc()).runs.diffSummary.query({ id: this.id() });
+            this.diff.set(d);
+          } catch {
+            this.diff.set(null);
+          }
+        })();
       }
     });
   }

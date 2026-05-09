@@ -60,9 +60,10 @@ export class RunStartDialogComponent {
   }
 
   private async load(): Promise<void> {
+    const trpc = await getTrpc();
     const [r, a] = await Promise.all([
-      (await getTrpc()).repos.list.query(),
-      (await getTrpc()).agents.list.query(),
+      trpc.repos.list.query(),
+      trpc.agents.list.query(),
     ]);
     this.repos.set(r);
     this.agents.set(a.filter((x: any) => x.enabled));

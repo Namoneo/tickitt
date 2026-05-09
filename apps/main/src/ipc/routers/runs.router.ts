@@ -7,16 +7,10 @@ export const runsRouter = router({
   list: publicProcedure
     .input(z.object({ states: z.array(z.string()).optional(), ticketId: z.string().optional() }).optional())
     .query(({ ctx, input }) => {
-      const states = input?.states;
-      const ticketId = input?.ticketId;
-      let q = ctx.db.select().from(runs);
-      if (states?.length) {
-        q = q.where(eq(runs.state, states[0] as any)) as typeof q; // simplified; full impl needs inArray
-      }
-      if (ticketId) {
-        q = q.where(eq(runs.ticketId, ticketId)) as typeof q;
-      }
-      return q.all();
+      return ctx.orchestrator.listRuns({
+        states: input?.states,
+        ticketId: input?.ticketId,
+      });
     }),
 
   get: publicProcedure
@@ -45,9 +39,9 @@ export const runsRouter = router({
     .query(async ({ ctx, input }) => {
       const [run] = ctx.db.select().from(runs).where(eq(runs.id, input.id)).limit(1).all();
       if (!run) throw new Error('Run not found');
+      if (!run.worktreePath) throw new Error('Worktree not ready yet');
       const [repo] = ctx.db.select().from(repos).where(eq(repos.id, run.repoId)).limit(1).all();
       if (!repo) throw new Error('Repo not found');
-      // Use origin/defaultBranch as baseRef for now
       return ctx.diff.summary(run.worktreePath, `origin/${repo.defaultBranch}`);
     }),
 });

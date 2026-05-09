@@ -56,6 +56,7 @@ async function bootstrap(): Promise<void> {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createMainWindow();
+      runStream.attach([mainWindow]);
     }
   });
 }

@@ -1,15 +1,15 @@
-import { eq, desc, and, inArray } from 'drizzle-orm';
+import { eq, asc, desc, and, inArray } from 'drizzle-orm';
 import type { Db, Run, RunEvent } from '@tickitt/db';
 import { runs, runEvents } from '@tickitt/db';
 import type { AgentEvent } from '../agents/agent.types.js';
 
 export function createRunPersistence(db: Db) {
   return {
-    insertRun(values: Omit<Run, 'id' | 'createdAt'>): Run {
+    insertRun(values: Omit<Run, 'createdAt'>): Run {
       const [row] = db.insert(runs).values({
         ...values,
         createdAt: new Date(),
-      } as any).returning().all();
+      }).returning().all();
       if (!row) throw new Error('Failed to insert run');
       return row;
     },
@@ -52,10 +52,9 @@ export function createRunPersistence(db: Db) {
     getEvents(runId: string, limit = 500): RunEvent[] {
       return db.select().from(runEvents)
         .where(eq(runEvents.runId, runId))
-        .orderBy(desc(runEvents.ts))
+        .orderBy(asc(runEvents.ts))
         .limit(limit)
-        .all()
-        .reverse();
+        .all();
     },
 
     recoverOnBoot(): number {

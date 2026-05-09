@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { getTrpc } from '../../core/ipc/trpc.client';
 import { RunStreamService } from '../../core/ipc/run-stream.service';
+import { subscribeRunEvents } from '../../core/ipc/run-events.bridge';
 import { RunStateBadgeComponent } from '../../shared/ui/run-state-badge.component';
 
 type RunRow = {
@@ -28,7 +29,7 @@ type RunRow = {
       @for (r of all(); track r.id) {
         <li>
           <a [routerLink]="['/runs', r.id]" class="id">{{ r.id.slice(0,8) }}</a>
-          <tk-run-state-badge [state]="r.state" />
+          <tk-run-state-badge [state]="liveState(r.id) ?? r.state" />
           <span class="branch">{{ r.branchName || '—' }}</span>
           <span class="dim">{{ r.startedAt ? (r.startedAt | date:'short') : 'queued' }}</span>
         </li>
@@ -46,12 +47,32 @@ type RunRow = {
     .dim { color: var(--fg-dim); font-size: 12px; }
   `],
 })
-export class RunsPage {
+export class RunsPage implements OnInit {
+  private readonly stream = inject(RunStreamService);
   protected readonly all = signal<RunRow[]>([]);
-  protected readonly q;
+  protected readonly q = this.stream.queueStats();
 
-  constructor(private readonly stream: RunStreamService) {
-    this.q = this.stream.queueStats();
+  // Per-run live state patches (state events only — no full re-fetch needed).
+  private readonly liveStates = signal<Map<string, string>>(new Map());
+  protected liveState(runId: string): string | undefined {
+    return this.liveStates().get(runId);
+  }
+
+  constructor() {
+    // Update states in-place as stream events arrive; re-fetch if we see an unknown run.
+    subscribeRunEvents((payload) => {
+      if (payload.kind === 'state' && payload.state) {
+        const known = this.all().some((r) => r.id === payload.runId);
+        if (known) {
+          this.liveStates.update((m) => new Map(m).set(payload.runId, payload.state!));
+        } else {
+          void this.refresh();
+        }
+      }
+    });
+  }
+
+  ngOnInit(): void {
     void this.refresh();
   }
 
