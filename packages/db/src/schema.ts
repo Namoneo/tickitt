@@ -15,6 +15,7 @@ export const repos = sqliteTable('repos', {
   defaultBranch: text('default_branch').notNull().default('main'),
   localPath: text('local_path').notNull(),
   lastSyncedAt: ts('last_synced_at'),
+  githubConnectionId: text('github_connection_id').references(() => connections.id, { onDelete: 'set null' }),
   createdAt: tsRequired('created_at'),
 });
 
@@ -96,6 +97,10 @@ export const runs = sqliteTable(
     prUrl: text('pr_url'),
     tokenCost: integer('token_cost'),
     approvalDecision: text('approval_decision', { enum: ['approved', 'changes_requested', 'discarded'] }),
+    baseSha: text('base_sha'),
+    sessionId: text('session_id'),
+    iterationCount: integer('iteration_count').notNull().default(0),
+    pushedAt: integer('pushed_at', { mode: 'timestamp_ms' }),
     createdAt: tsRequired('created_at'),
   },
   (t) => ({

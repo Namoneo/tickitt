@@ -20,6 +20,7 @@
     "@tickitt/shared-types": "workspace:*",
     "@trpc/client": "^11.0.0-rc.553",
     "electron-trpc": "^0.7.0",
+    "monaco-editor": "^0.55.1",
     "rxjs": "^7.8.1",
     "superjson": "^2.2.1",
     "tslib": "^2.7.0",
