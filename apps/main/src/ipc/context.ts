@@ -4,6 +4,7 @@ import type { ConnectionService } from '../services/connection-service.js';
 import type { TicketSyncService } from '../services/ticket-sync-service.js';
 import type { WorktreeService } from '../services/worktree.service.js';
 import type { DiffService } from '../services/diff.service.js';
+import type { RunOrchestrator } from '../runs/run.orchestrator.js';
 
 export interface IpcContext {
   db: Db;
@@ -12,6 +13,7 @@ export interface IpcContext {
   ticketSync: TicketSyncService;
   worktrees: WorktreeService;
   diff: DiffService;
+  orchestrator: RunOrchestrator;
 }
 
 export type CreateContext = () => Promise<IpcContext>;
