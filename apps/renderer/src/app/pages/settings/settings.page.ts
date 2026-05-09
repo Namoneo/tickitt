@@ -3,6 +3,7 @@ import { ConnectionsSectionComponent } from './connections-section.component';
 import { AgentsSectionComponent } from './agents-section.component';
 import { ReposSectionComponent } from './repos-section.component';
 import { DiagnosticsSectionComponent } from './diagnostics-section.component';
+import { MaxConcurrencySection } from './max-concurrency-section.component';
 
 @Component({
   selector: 'tk-settings',
@@ -13,10 +14,12 @@ import { DiagnosticsSectionComponent } from './diagnostics-section.component';
     AgentsSectionComponent,
     ReposSectionComponent,
     DiagnosticsSectionComponent,
+    MaxConcurrencySection,
   ],
   template: `
     <h2>Settings</h2>
     <tk-diagnostics-section />
+    <tk-max-concurrency-section />
     <tk-connections-section />
     <tk-agents-section />
     <tk-repos-section />

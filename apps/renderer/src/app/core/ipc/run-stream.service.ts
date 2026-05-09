@@ -23,6 +23,7 @@ export class RunStreamService {
   }>();
 
   private readonly queueSig = signal<{ active: number; waiting: number }>({ active: 0, waiting: 0 });
+  private readonly statsSig = signal<{ active: number; queued: number; awaiting: number; failed: number }>({ active: 0, queued: 0, awaiting: 0, failed: 0 });
 
   constructor() {
     subscribeRunEvents((payload) => this.handle(payload));
@@ -30,6 +31,10 @@ export class RunStreamService {
 
   queueStats() {
     return computed(() => this.queueSig());
+  }
+
+  runStats() {
+    return computed(() => this.statsSig());
   }
 
   forRun(runId: string) {
@@ -74,6 +79,13 @@ export class RunStreamService {
       s.state.set({ state: payload.state ?? 'unknown', error: payload.error ?? null });
     } else if (payload.kind === 'queue') {
       this.queueSig.set({ active: payload.active ?? 0, waiting: payload.waiting ?? 0 });
+    } else if (payload.kind === 'stats') {
+      this.statsSig.set({
+        active: payload.active ?? 0,
+        queued: payload.queued ?? 0,
+        awaiting: payload.awaiting ?? 0,
+        failed: payload.failed ?? 0,
+      });
     }
   }
 }
