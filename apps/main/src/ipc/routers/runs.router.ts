@@ -44,4 +44,36 @@ export const runsRouter = router({
       if (!repo) throw new Error('Repo not found');
       return ctx.diff.summary(run.worktreePath, `origin/${repo.defaultBranch}`);
     }),
+
+  fileContent: publicProcedure
+    .input(z.object({ id: z.string(), path: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [run] = ctx.db.select().from(runs).where(eq(runs.id, input.id)).limit(1).all();
+      if (!run) throw new Error('Run not found');
+      if (!run.worktreePath) throw new Error('Worktree not ready yet');
+      const [repo] = ctx.db.select().from(repos).where(eq(repos.id, run.repoId)).limit(1).all();
+      if (!repo) throw new Error('Repo not found');
+      const baseRef = run.baseSha ?? `origin/${repo.defaultBranch}`;
+      return ctx.diff.fileContent(run.worktreePath, baseRef, input.path);
+    }),
+
+  approve: publicProcedure
+    .input(z.object({ id: z.string(), commitMessage: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.orchestrator.approve(input.id, { commitMessage: input.commitMessage });
+    }),
+
+  discard: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.orchestrator.discard(input.id);
+      return { ok: true as const };
+    }),
+
+  requestChanges: publicProcedure
+    .input(z.object({ id: z.string(), feedback: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.orchestrator.requestChanges(input.id, input.feedback);
+      return { ok: true as const };
+    }),
 });

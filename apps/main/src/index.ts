@@ -13,6 +13,8 @@ import { AgentRegistry } from './agents/registry.js';
 import { RunOrchestrator } from './runs/run.orchestrator.js';
 import { RunStream } from './runs/run.stream.js';
 
+import { PushService } from './services/push.service.js';
+
 app.setName('Tickitt');
 
 let mainWindow: BrowserWindow | null = null;
@@ -29,7 +31,8 @@ async function bootstrap(): Promise<void> {
   const worktrees = new WorktreeService(db, paths, repoMutex);
   const diff = new DiffService();
   const registry = new AgentRegistry();
-  const orchestrator = new RunOrchestrator(db, paths, worktrees, registry, runStream);
+  const push = new PushService(db, connectionService);
+  const orchestrator = new RunOrchestrator(db, paths, worktrees, registry, runStream, push);
 
   // Recover any runs that were interrupted by an app restart
   const recovered = orchestrator.recoverOnBoot();
