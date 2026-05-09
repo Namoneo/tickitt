@@ -323,5 +323,20 @@ export class RunOrchestrator {
       this.persistence.updateState(runId, 'awaiting_review');
       this.stream.publish({ kind: 'state', runId, state: 'awaiting_review' });
     }
+    this.publishStats();
+  }
+
+  private publishStats(): void {
+    const counts = (['queued', 'preparing', 'running', 'pushing', 'awaiting_review', 'failed'] as const)
+      .map((s) => ({ s, n: this.persistence.listRuns({ states: [s] }).length }));
+    const by = (s: string): number => counts.find((c) => c.s === s)?.n ?? 0;
+    this.stream.publish({
+      kind: 'stats',
+      runId: '',
+      active: by('preparing') + by('running') + by('pushing'),
+      queued: by('queued'),
+      awaiting: by('awaiting_review'),
+      failed: by('failed'),
+    });
   }
 }
