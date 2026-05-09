@@ -12,6 +12,7 @@ import { DiffService } from './services/diff.service.js';
 import { AgentRegistry } from './agents/registry.js';
 import { RunOrchestrator } from './runs/run.orchestrator.js';
 import { RunStream } from './runs/run.stream.js';
+import { SettingsService } from './services/settings.service.js';
 
 import { PushService } from './services/push.service.js';
 
@@ -24,6 +25,7 @@ async function bootstrap(): Promise<void> {
   const paths = resolveAppPaths();
   const db = await initDatabase(paths);
 
+  const settings = new SettingsService(db);
   const connectionService = new ConnectionService(db);
   const ticketSync = new TicketSyncService(db, connectionService);
 
@@ -32,7 +34,7 @@ async function bootstrap(): Promise<void> {
   const diff = new DiffService();
   const registry = new AgentRegistry();
   const push = new PushService(db, connectionService);
-  const orchestrator = new RunOrchestrator(db, paths, worktrees, registry, runStream, push);
+  const orchestrator = new RunOrchestrator(db, paths, worktrees, registry, runStream, push, settings);
 
   // Recover any runs that were interrupted by an app restart
   const recovered = orchestrator.recoverOnBoot();
@@ -50,7 +52,7 @@ async function bootstrap(): Promise<void> {
     windows: [mainWindow],
     createContext: async () => ({
       db, paths, connectionService, ticketSync,
-      worktrees, diff, orchestrator,
+      worktrees, diff, orchestrator, settings,
     }),
   });
 

@@ -1,15 +1,33 @@
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
-import { runs, runEvents, repos } from '@tickitt/db';
+import { eq, inArray } from 'drizzle-orm';
+import { runs, runEvents, repos, tickets } from '@tickitt/db';
 import { router, publicProcedure } from '../trpc.js';
 
 export const runsRouter = router({
   list: publicProcedure
     .input(z.object({ states: z.array(z.string()).optional(), ticketId: z.string().optional() }).optional())
     .query(({ ctx, input }) => {
-      return ctx.orchestrator.listRuns({
+      const runRows = ctx.orchestrator.listRuns({
         states: input?.states,
         ticketId: input?.ticketId,
+      });
+      // Enrich with ticket info for the Runs page
+      const ticketIds = [...new Set(runRows.map((r) => r.ticketId).filter(Boolean))];
+      const ticketRows = ticketIds.length
+        ? ctx.db.select().from(tickets).where(inArray(tickets.id, ticketIds as any)).all()
+        : [];
+      const ticketMap = new Map(ticketRows.map((t) => [t.id, t]));
+      // Compute blockedBy (another queued/preparing/running run on the same repo)
+      const activeRuns = runRows.filter((r) => ['queued','preparing','running'].includes(r.state));
+      return runRows.map((r) => {
+        const blockedBy = r.state === 'queued'
+          ? activeRuns.find((a) => a.repoId === r.repoId && a.id !== r.id)?.id ?? null
+          : null;
+        return {
+          ...r,
+          ticket: ticketMap.get(r.ticketId) ?? null,
+          blockedBy,
+        };
       });
     }),
 
