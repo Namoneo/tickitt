@@ -10,9 +10,10 @@ import { createRunPersistence, type RunPersistence } from './run.persistence.js'
 import { buildPrompt, buildContinuationPrompt } from './prompt.js';
 import type { PromptContext } from './run.types.js';
 import type { PushService } from '../services/push.service.js';
+import type { SettingsService } from '../services/settings.service.js';
 
 export class RunOrchestrator {
-  private readonly queue = new RunQueue();
+  private readonly queue: RunQueue;
   private readonly persistence: RunPersistence;
   private readonly handles = new Map<string, RunHandle>();
   private readonly cancelledRuns = new Set<string>();
@@ -24,10 +25,16 @@ export class RunOrchestrator {
     private readonly registry: AgentRegistry,
     private readonly stream: RunStream,
     private readonly push?: PushService,
+    settings?: SettingsService,
   ) {
     this.persistence = createRunPersistence(db);
+    const initialMax = settings?.get<number>('runs.maxConcurrent', 3) ?? 3;
+    this.queue = new RunQueue(initialMax);
     this.queue.onChange((stats) => {
       this.stream.publish({ kind: 'queue', runId: '', active: stats.active, waiting: stats.waiting });
+    });
+    settings?.watch<number>('runs.maxConcurrent', (n) => {
+      this.queue.setMaxActive(n);
     });
   }
 

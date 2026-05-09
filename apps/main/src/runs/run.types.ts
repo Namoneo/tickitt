@@ -8,7 +8,7 @@ export interface RunJob {
 }
 
 export interface RunEventPayload {
-  kind: 'event' | 'state' | 'queue';
+  kind: 'event' | 'state' | 'queue' | 'stats';
   runId: string;
   event?: {
     type: string;
@@ -19,6 +19,9 @@ export interface RunEventPayload {
   error?: string | null | undefined;
   active?: number;
   waiting?: number;
+  queued?: number;
+  awaiting?: number;
+  failed?: number;
 }
 
 export interface QueueStats {

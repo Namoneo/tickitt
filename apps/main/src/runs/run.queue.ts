@@ -1,14 +1,23 @@
 import type { RunJob } from './run.types.js';
 
-const MAX_ACTIVE = 3;
-
 export class RunQueue {
   private active = 0;
+  private maxActive: number;
   private readonly pending: RunJob[] = [];
   private readonly listeners = new Set<(stats: { active: number; waiting: number }) => void>();
 
+  constructor(maxActive = 3) {
+    this.maxActive = maxActive;
+  }
+
   get stats(): { active: number; waiting: number } {
     return { active: this.active, waiting: this.pending.length };
+  }
+
+  setMaxActive(n: number): void {
+    if (n < 1) throw new Error('maxActive must be >= 1');
+    this.maxActive = n;
+    this.pump();
   }
 
   onChange(cb: (stats: { active: number; waiting: number }) => void): () => void {
@@ -23,7 +32,7 @@ export class RunQueue {
   }
 
   private pump(): void {
-    if (this.active >= MAX_ACTIVE || this.pending.length === 0) return;
+    if (this.active >= this.maxActive || this.pending.length === 0) return;
     const job = this.pending.shift()!;
     this.active++;
     this.emit();
