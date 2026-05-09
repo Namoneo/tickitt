@@ -8,6 +8,14 @@ const ts = (name: string) =>
 const tsRequired = (name: string) =>
   integer(name, { mode: 'timestamp_ms' }).notNull().$defaultFn(() => new Date());
 
+export const appSettings = sqliteTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: text('value', { mode: 'json' }).notNull().$type<unknown>(),
+  updatedAt: tsRequired('updated_at'),
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;
+
 export const repos = sqliteTable('repos', {
   id: id(),
   name: text('name').notNull(),
