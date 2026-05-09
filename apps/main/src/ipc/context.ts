@@ -14,4 +14,4 @@ export interface IpcContext {
   diff: DiffService;
 }
 
-export type CreateContext = () => IpcContext;
+export type CreateContext = () => Promise<IpcContext>;

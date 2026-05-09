@@ -102,10 +102,25 @@ export class WorktreeService {
   async remove(opts: { repoId: string; worktreePath: string; deleteBranch: boolean }): Promise<void> {
     return this.mutex.run(opts.repoId, async () => {
       const repo = await this.requireRepo(opts.repoId);
+
+      // Read the branch name before removal while the worktree record still exists.
+      let branchName: string | undefined;
+      if (opts.deleteBranch) {
+        const out = await git(repo.localPath).raw(['worktree', 'list', '--porcelain']);
+        const entry = parseWorktreeList(out, repo.localPath)
+          .find((e) => e.path === opts.worktreePath);
+        branchName = entry?.branch.replace('refs/heads/', '');
+      }
+
       await git(repo.localPath).raw(['worktree', 'remove', '--force', opts.worktreePath])
         .catch(async () => {
           await git(repo.localPath).raw(['worktree', 'prune']);
         });
+
+      if (opts.deleteBranch && branchName) {
+        await git(repo.localPath).raw(['branch', '-D', branchName])
+          .catch(() => undefined); // idempotent
+      }
     });
   }
 

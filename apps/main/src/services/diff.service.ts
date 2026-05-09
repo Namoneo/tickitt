@@ -40,10 +40,9 @@ export class DiffService {
   async summary(worktreePath: string, baseRef: string): Promise<DiffSummary> {
     const g = git(worktreePath);
 
-    // Tracked changes: committed vs base (for committed work, but normally base vs HEAD)
-    // Actually per spec: committed + staged + unstaged + untracked vs base branch ref
-    const numstat = await g.raw(['diff', '--numstat', '-M', baseRef, 'HEAD']);
-    const nameStatus = await g.raw(['diff', '--name-status', '-M', baseRef, 'HEAD']);
+    // Diff working tree against baseRef — captures committed + staged + unstaged changes.
+    const numstat = await g.raw(['diff', '--numstat', '-M', baseRef]);
+    const nameStatus = await g.raw(['diff', '--name-status', '-M', baseRef]);
     const tracked = mergeNumstatAndStatus(numstat, nameStatus);
 
     // Untracked: list, then read sizes and pretend they're "added" with no deletions
@@ -173,21 +172,31 @@ function mergeNumstatAndStatus(numstatRaw: string, nameStatusRaw: string): DiffF
   const stats = new Map<string, { add: number; del: number; binary: boolean }>();
   for (const line of numstatRaw.split('\n')) {
     if (!line.trim()) continue;
-    const [a, d, ...pathParts] = line.split('\t');
-    const p = pathParts.join('\t');
+    const parts = line.split('\t');
+    const a = parts[0]!;
+    const d = parts[1]!;
     const binary = a === '-' && d === '-';
-    stats.set(p, {
-      add: binary ? 0 : parseInt(a!, 10) || 0,
-      del: binary ? 0 : parseInt(d!, 10) || 0,
+    const entry = {
+      add: binary ? 0 : parseInt(a, 10) || 0,
+      del: binary ? 0 : parseInt(d, 10) || 0,
       binary,
-    });
+    };
+    if (parts.length >= 4) {
+      // Rename with separate old/new path columns — index both so either lookup hits.
+      stats.set(parts[2]!, entry);
+      stats.set(parts[3]!, entry);
+    } else if (parts[2]) {
+      stats.set(parts[2], entry);
+    }
   }
 
   const status = parseNameStatus(nameStatusRaw);
   return status.map((s) => {
-    const key = s.status === 'renamed' ? `${s.oldPath} => ${s.path}` : s.path;
-    const stat = stats.get(key) ?? stats.get(s.path) ?? { add: 0, del: 0, binary: false };
-    const file: DiffFile = {
+    const stat =
+      stats.get(s.path) ??
+      (s.oldPath ? stats.get(s.oldPath) : undefined) ??
+      { add: 0, del: 0, binary: false };
+    return {
       path: s.path,
       status: s.status,
       additions: stat.add,
@@ -196,7 +205,6 @@ function mergeNumstatAndStatus(numstatRaw: string, nameStatusRaw: string): DiffF
       isUntracked: false,
       oldPath: s.oldPath,
     };
-    return file;
   });
 }
 
@@ -217,7 +225,10 @@ async function isBinaryFile(absPath: string): Promise<boolean> {
 }
 
 function synthesiseAddedFilePatch(filePath: string, content: string): string {
-  const lines = content.split('\n');
+  // Trim the trailing empty string produced when content ends with '\n' so the
+  // hunk header line count matches what git would actually produce.
+  const raw = content.split('\n');
+  const lines = raw.at(-1) === '' ? raw.slice(0, -1) : raw;
   const header =
 `diff --git a/${filePath} b/${filePath}
 new file mode 100644
@@ -225,5 +236,5 @@ new file mode 100644
 +++ b/${filePath}
 @@ -0,0 +1,${lines.length} @@
 `;
-  return header + lines.map((l) => `+${l}`).join('\n');
+  return header + lines.map((l) => `+${l}`).join('\n') + '\n';
 }

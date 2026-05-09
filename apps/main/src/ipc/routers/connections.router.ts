@@ -41,9 +41,10 @@ export const connectionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const [row] = ctx.db.select().from(connections).where(eq(connections.id, input.id)).all();
       if (!row) return { ok: false as const };
-      await Keychain.delete(row.secretRef);
+      // Delete from DB first so the row is gone even if keychain removal fails.
       ctx.db.delete(connections).where(eq(connections.id, input.id)).run();
       ctx.connectionService.evict(row.id);
+      await Keychain.delete(row.secretRef);
       return { ok: true as const };
     }),
 
