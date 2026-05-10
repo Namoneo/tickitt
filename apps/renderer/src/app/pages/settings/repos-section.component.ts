@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Repo } from '@tickitt/db';
 import { getTrpc, isTickittIpcUnavailableError } from '../../core/ipc/trpc.client';
@@ -88,12 +88,10 @@ export class ReposSectionComponent {
     void this.load();
   }
 
-  protected get filtered() {
-    return () => {
-      const s = this.search().toLowerCase();
-      return s ? this.list().filter((r) => r.name.toLowerCase().includes(s) || r.remoteUrl.toLowerCase().includes(s)) : this.list();
-    };
-  }
+  protected readonly filtered = computed(() => {
+    const s = this.search().toLowerCase();
+    return s ? this.list().filter((r) => r.name.toLowerCase().includes(s) || r.remoteUrl.toLowerCase().includes(s)) : this.list();
+  });
 
   protected openCreate(): void {
     this.editing.set('new');

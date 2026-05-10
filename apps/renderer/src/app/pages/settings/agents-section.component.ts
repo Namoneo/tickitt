@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Agent } from '@tickitt/db';
 import { getTrpc, isTickittIpcUnavailableError } from '../../core/ipc/trpc.client';
@@ -106,12 +106,10 @@ export class AgentsSectionComponent {
     void this.load();
   }
 
-  protected get filtered() {
-    return () => {
-      const s = this.search().toLowerCase();
-      return s ? this.list().filter((a) => a.name.toLowerCase().includes(s) || a.kind.includes(s)) : this.list();
-    };
-  }
+  protected readonly filtered = computed(() => {
+    const s = this.search().toLowerCase();
+    return s ? this.list().filter((a) => a.name.toLowerCase().includes(s) || a.kind.includes(s)) : this.list();
+  });
 
   protected openCreate(): void {
     this.editing.set('new');

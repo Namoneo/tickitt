@@ -65,11 +65,11 @@ export class LinearTicketSource implements TicketSource {
     let pageCount = 0;
 
     do {
-      const result = await this.client.issues({
-        filter,
-        first: pageSize,
-        ...(cursor ? { after: cursor } : {}),
-      });
+      // Build query object explicitly — conditional spread causes 'after: string | undefined'
+      // which conflicts with exactOptionalPropertyTypes: true on InputMaybe<string>.
+      const query: { filter: any; first: number; after?: string } = { filter, first: pageSize };
+      if (cursor) query.after = cursor;
+      const result = await this.client.issues(query);
       for (const issue of result.nodes) {
         tickets.push(this.toDto(issue as any));
       }
