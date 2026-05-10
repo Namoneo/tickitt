@@ -3,7 +3,7 @@
  * This bypasses tRPC — events are pushed from main as they happen.
  */
 export interface RunEventPayload {
-  kind: 'event' | 'state' | 'queue' | 'stats';
+  kind: 'event' | 'state' | 'queue' | 'stats' | 'agent.capabilities';
   runId: string;
   event?: { type: string; payload: unknown };
   eventDbId?: number;
@@ -14,6 +14,7 @@ export interface RunEventPayload {
   queued?: number;
   awaiting?: number;
   failed?: number;
+  agentCapabilities?: { supportsContinuation: boolean };
 }
 
 interface RunEventsGlobal {

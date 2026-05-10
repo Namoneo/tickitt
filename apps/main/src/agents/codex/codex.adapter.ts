@@ -35,13 +35,13 @@ export class CodexAdapter implements AgentAdapter {
     });
 
     // Write the prompt to stdin and close.
+    child.stdin!.on('error', () => {}); // suppress EPIPE if process exits before reading
     child.stdin!.write(opts.prompt);
     child.stdin!.end();
 
     const queue: AgentEvent[] = [];
     let waiter: (() => void) | null = null;
     let closed = false;
-    let exitCode: number | null = null;
 
     const emit = (e: AgentEvent): void => {
       queue.push(e);
@@ -85,7 +85,6 @@ export class CodexAdapter implements AgentAdapter {
 
     const exit = new Promise<number | null>((resolve) => {
       child.on('close', (code) => {
-        exitCode = code;
         if (stderrBuf.trim()) emit({ type: 'system', subtype: 'stderr', data: stderrBuf.trim() });
         closed = true;
         if (waiter) { const w = waiter; waiter = null; w(); }
