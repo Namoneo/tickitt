@@ -1,4 +1,4 @@
-import type { AgentEvent } from '../agents/agent.types.js';
+import type { AgentCapabilities, AgentEvent } from '../agents/agent.types.js';
 
 export type RunId = string;
 
@@ -8,7 +8,7 @@ export interface RunJob {
 }
 
 export interface RunEventPayload {
-  kind: 'event' | 'state' | 'queue' | 'stats';
+  kind: 'event' | 'state' | 'queue' | 'stats' | 'agent.capabilities';
   runId: string;
   event?: {
     type: string;
@@ -22,6 +22,7 @@ export interface RunEventPayload {
   queued?: number;
   awaiting?: number;
   failed?: number;
+  agentCapabilities?: AgentCapabilities;
 }
 
 export interface QueueStats {

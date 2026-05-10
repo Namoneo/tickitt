@@ -1,4 +1,5 @@
 import { ClaudeCodeAdapter } from './claude-code/claude-code.adapter.js';
+import { CodexAdapter } from './codex/codex.adapter.js';
 import type { AgentAdapter } from './agent.adapter.js';
 import type { AgentKind } from './agent.types.js';
 
@@ -7,6 +8,7 @@ export class AgentRegistry {
 
   constructor() {
     this.register('claude-code', () => new ClaudeCodeAdapter());
+    this.register('codex', () => new CodexAdapter());
     // Other adapters registered in P7+.
   }
 

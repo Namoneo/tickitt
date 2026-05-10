@@ -40,7 +40,9 @@ interface RunDetail {
           }
           @if (showApproveDiscard()) {
             <button class="primary" (click)="approve()" [disabled]="acting()">Approve</button>
-            <button (click)="requestChanges()" [disabled]="acting()">Request Changes</button>
+            @if (canRequestChanges()) {
+              <button (click)="requestChanges()" [disabled]="acting()">Request Changes</button>
+            }
             <button class="danger" (click)="discard()" [disabled]="acting()">Discard</button>
           }
         </div>
@@ -137,7 +139,13 @@ export class RunDetailPage {
     return d.files.map((f: any) => ({ path: f.path, status: f.status, isBinary: f.isBinary }));
   });
 
-  protected readonly closeRequestDialogFn = () => this.closeRequestDialog();
+  protected readonly agentCaps = computed(() => this.streamEvents().agentCapabilities());
+
+  protected readonly canRequestChanges = computed(() => {
+    const caps = this.agentCaps();
+    if (caps && !caps.supportsContinuation) return false;
+    return true;
+  });
 
   constructor() {
     effect(() => {

@@ -11,16 +11,12 @@ interface RunState {
   error: string | null;
 }
 
-interface StreamData {
-  events: EventEntry[];
-  state: RunState | null;
-}
-
 @Injectable()
 export class RunStreamService {
   private readonly streams = new Map<string, {
     events: ReturnType<typeof signal<EventEntry[]>>;
     state: ReturnType<typeof signal<RunState | null>>;
+    capabilities: ReturnType<typeof signal<{ supportsContinuation: boolean } | null>>;
   }>();
 
   private readonly queueSig = signal<{ active: number; waiting: number }>({ active: 0, waiting: 0 });
@@ -57,6 +53,7 @@ export class RunStreamService {
     return {
       events: computed(() => s.events()),
       state: computed(() => s.state()),
+      agentCapabilities: computed(() => s.capabilities()),
     };
   }
 
@@ -71,6 +68,7 @@ export class RunStreamService {
       s = {
         events: signal<EventEntry[]>([]),
         state: signal<RunState | null>(null),
+        capabilities: signal<{ supportsContinuation: boolean } | null>(null),
       };
       this.streams.set(runId, s);
     }
@@ -92,6 +90,11 @@ export class RunStreamService {
     } else if (payload.kind === 'state') {
       const s = this.ensure(payload.runId);
       s.state.set({ state: payload.state ?? 'unknown', error: payload.error ?? null });
+    } else if (payload.kind === 'agent.capabilities') {
+      const s = this.ensure(payload.runId);
+      if (payload.agentCapabilities) {
+        s.capabilities.set({ supportsContinuation: payload.agentCapabilities.supportsContinuation });
+      }
     } else if (payload.kind === 'queue') {
       this.queueSig.set({ active: payload.active ?? 0, waiting: payload.waiting ?? 0 });
     } else if (payload.kind === 'stats') {

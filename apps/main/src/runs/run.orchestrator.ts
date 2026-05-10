@@ -179,6 +179,10 @@ export class RunOrchestrator {
       this.stream.publish({ kind: 'state', runId, state: 'running' });
 
       const adapter = this.registry.get(agent.kind as any);
+
+      // Publish agent capabilities so renderer can gate UI (e.g. request-changes button)
+      this.stream.publish({ kind: 'agent.capabilities', runId, agentCapabilities: adapter.capabilities });
+
       const promptCtx: PromptContext = {
         ticketKey: ticket.key,
         ticketTitle: ticket.title,
