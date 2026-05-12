@@ -209,6 +209,8 @@ export class RunDetailPage {
     this.showRequestDialog.set(true);
   }
 
+  protected readonly closeRequestDialogFn = (): void => this.showRequestDialog.set(false);
+
   protected closeRequestDialog(): void {
     this.showRequestDialog.set(false);
   }

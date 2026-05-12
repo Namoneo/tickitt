@@ -3,7 +3,7 @@ import { agents, repos, tickets, runs, type Db } from '@tickitt/db';
 import type { AppPaths } from '../paths.js';
 import type { WorktreeService } from '../services/worktree.service.js';
 import type { AgentRegistry } from '../agents/registry.js';
-import type { RunHandle, AgentEvent } from '../agents/agent.types.js';
+import type { AgentKind, RunHandle, AgentEvent } from '../agents/agent.types.js';
 import { RunQueue } from './run.queue.js';
 import { RunStream } from './run.stream.js';
 import { createRunPersistence, type RunPersistence } from './run.persistence.js';
@@ -178,7 +178,7 @@ export class RunOrchestrator {
       this.persistence.updateState(runId, 'running');
       this.stream.publish({ kind: 'state', runId, state: 'running' });
 
-      const adapter = this.registry.get(agent.kind as any);
+      const adapter = this.registry.get(agent.kind as AgentKind);
 
       // Publish agent capabilities so renderer can gate UI (e.g. request-changes button)
       this.stream.publish({ kind: 'agent.capabilities', runId, agentCapabilities: adapter.capabilities });
@@ -263,7 +263,7 @@ export class RunOrchestrator {
     this.persistence.updateState(runId, 'running');
     this.stream.publish({ kind: 'state', runId, state: 'running' });
 
-    const adapter = this.registry.get(agentRow.kind as any);
+    const adapter = this.registry.get(agentRow.kind as AgentKind);
     let handle: RunHandle;
     try {
       handle = adapter.spawn({
@@ -295,40 +295,39 @@ export class RunOrchestrator {
         const dbId = this.persistence.appendEvent(runId, event);
         this.stream.publish({ kind: 'event', runId, event: { type: event.type, payload: event }, eventDbId: dbId });
       }
+
+      const exitCode = await handle.exitCode;
+      const wasCancelled = this.cancelledRuns.delete(runId);
+      let next: 'abandoned' | 'failed' | 'awaiting_review';
+      let errorMsg: string | undefined;
+
+      if (wasCancelled) {
+        next = 'abandoned';
+      } else if (exitCode !== 0 || sawError) {
+        next = 'failed';
+        errorMsg = exitCode === 0 ? 'agent reported error' : `exit code ${exitCode}`;
+      } else {
+        next = 'awaiting_review';
+      }
+
+      if (next === 'failed') {
+        this.persistence.updateState(runId, 'failed', errorMsg ?? null);
+        this.stream.publish({ kind: 'state', runId, state: 'failed', error: errorMsg ?? null });
+      } else if (next === 'abandoned') {
+        this.persistence.updateState(runId, 'abandoned');
+        this.stream.publish({ kind: 'state', runId, state: 'abandoned' });
+      } else {
+        this.persistence.updateState(runId, 'awaiting_review');
+        this.stream.publish({ kind: 'state', runId, state: 'awaiting_review' });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.persistence.updateState(runId, 'failed', msg);
       this.stream.publish({ kind: 'state', runId, state: 'failed', error: msg });
-      return;
     } finally {
       this.handles.delete(runId);
+      this.publishStats();
     }
-
-    const exitCode = await handle.exitCode;
-    const wasCancelled = this.cancelledRuns.delete(runId);
-    let next: 'abandoned' | 'failed' | 'awaiting_review';
-    let errorMsg: string | undefined;
-
-    if (wasCancelled) {
-      next = 'abandoned';
-    } else if (exitCode !== 0 || sawError) {
-      next = 'failed';
-      errorMsg = exitCode === 0 ? 'agent reported error' : `exit code ${exitCode}`;
-    } else {
-      next = 'awaiting_review';
-    }
-
-    if (next === 'failed') {
-      this.persistence.updateState(runId, 'failed', errorMsg ?? null);
-      this.stream.publish({ kind: 'state', runId, state: 'failed', error: errorMsg ?? null });
-    } else if (next === 'abandoned') {
-      this.persistence.updateState(runId, 'abandoned');
-      this.stream.publish({ kind: 'state', runId, state: 'abandoned' });
-    } else {
-      this.persistence.updateState(runId, 'awaiting_review');
-      this.stream.publish({ kind: 'state', runId, state: 'awaiting_review' });
-    }
-    this.publishStats();
   }
 
   private publishStats(): void {

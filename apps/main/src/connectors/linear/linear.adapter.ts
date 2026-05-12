@@ -109,8 +109,11 @@ export class LinearTicketSource implements TicketSource {
   private async findIssueByKey(key: string) {
     try {
       return await this.client.issue(key);
-    } catch {
-      return null;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Only swallow "not found" — rethrow auth/network errors
+      if (/not found|Entity not found/i.test(msg)) return null;
+      throw err;
     }
   }
 
