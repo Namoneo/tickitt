@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { createIPCHandler } from 'electron-trpc/main';
 import { resolveAppPaths } from './paths.js';
 import { initDatabase, closeDatabase } from './db/client.js';
+import { routerForElectronTrpc } from './ipc/electron-trpc-router.js';
 import { appRouter } from './ipc/router.js';
 import { createMainWindow } from './windows/main-window.js';
 import { ConnectionService } from './services/connection-service.js';
@@ -48,7 +49,7 @@ async function bootstrap(): Promise<void> {
   runStream.attach([mainWindow]);
 
   createIPCHandler({
-    router: appRouter,
+    router: routerForElectronTrpc(appRouter),
     windows: [mainWindow],
     createContext: async () => ({
       db, paths, connectionService, ticketSync,
